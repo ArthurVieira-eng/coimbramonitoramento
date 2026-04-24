@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
-import { Play, Square, Camera, User, Trash2, LogOut } from 'lucide-react';
+import { Play, Square, Camera, RefreshCw, MapPin } from 'lucide-react';
 import L from 'leaflet';
 
 // --- ÍCONES ---
@@ -17,13 +17,18 @@ function AutoCenter({ coords }) {
 
 function App() {
   const [isRegistered, setIsRegistered] = useState(false);
-  const [perfil, setPerfil] = useState({ nome: '', tipo: '' });
+  const [perfil, setPerfil] = useState({ nome: '', email: '', tipo: '' });
   const [position, setPosition] = useState([-8.122672, -34.965546]); 
   const [path, setPath] = useState([]); 
   const [isTracking, setIsTracking] = useState(false);
   const [markers, setMarkers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [tempPhoto, setTempPhoto] = useState(null);
+  
+  // ESTADOS SEPARADOS PARA NÃO INTERFERIREM
+  const [sugestaoSelecionada, setSugestaoSelecionada] = useState("");
+  const [textoLivre, setTextoLivre] = useState("");
+  
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -45,39 +50,56 @@ function App() {
           if (!isNaN(lat)) {
             setPosition([lat, lng]);
             setPath(prev => [...prev, [lat, lng]]);
+            localStorage.setItem('auditor_path', JSON.stringify([...path, [lat, lng]]));
           }
         },
         (err) => console.error(err),
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, timeout: 10000 }
       );
     }
     return () => { if (watchId) navigator.geolocation.clearWatch(watchId); };
   }, [isTracking]);
 
   const handleLogin = () => {
-    if (perfil.nome) {
+    if (perfil.nome && perfil.email) {
       localStorage.setItem('auditor_perfil', JSON.stringify(perfil));
       setIsRegistered(true);
+    } else { alert("Preencha os dados de acesso."); }
+  };
+
+  const handleNewRun = () => {
+    if(window.confirm("Iniciar nova corrida? O mapa atual será limpo.")) {
+      setPath([]); setMarkers([]); setIsTracking(false);
+      localStorage.removeItem('auditor_path');
+      localStorage.removeItem('auditor_markers');
     }
   };
 
-  const handleLogout = () => {
-    if(window.confirm("Deseja sair e trocar de usuário?")) {
-      localStorage.removeItem('auditor_perfil');
-      setIsRegistered(false);
-      setPerfil({ nome: '', tipo: '' });
-    }
+  const salvarOcorrencia = () => {
+    const novaOcorrencia = { 
+      pos: position, 
+      categoria: sugestaoSelecionada || "Geral", 
+      detalhes: textoLivre,
+      foto: tempPhoto 
+    };
+    const listaAtualizada = [...markers, novaOcorrencia];
+    setMarkers(listaAtualizada);
+    localStorage.setItem('auditor_markers', JSON.stringify(listaAtualizada));
+    
+    // Reseta tudo para a próxima
+    setShowModal(false); setTempPhoto(null); setSugestaoSelecionada(""); setTextoLivre("");
   };
 
   if (!isRegistered) {
     return (
       <div style={containerStyle}>
         <div style={cardStyle}>
-          <div style={logoCircle}>AUD</div>
-          <h2 style={{ margin: '10px 0' }}>Auditoria Cidadã</h2>
-          <p style={{ color: '#666', fontSize: '14px', marginBottom: '20px' }}>Inicie o seu percurso</p>
+          <div style={logoCircle}>Logo</div>
+          <h2 style={{ color: '#00A8FF', marginBottom: '5px' }}>Auditoria Urbana</h2>
+          <p style={{ color: '#666', fontSize: '13px', marginBottom: '20px' }}>Sistema de Mapeamento de Acessibilidade</p>
           <input style={inputStyle} placeholder="Nome Completo" onChange={e => setPerfil({...perfil, nome: e.target.value})} />
-          <button onClick={handleLogin} style={mainBtn}>Entrar</button>
+          <input style={inputStyle} type="email" placeholder="E-mail Institucional" onChange={e => setPerfil({...perfil, email: e.target.value})} />
+          <button onClick={handleLogin} style={mainBtn}>ENTRAR NO SISTEMA</button>
         </div>
       </div>
     );
@@ -85,72 +107,88 @@ function App() {
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', overflow: 'hidden' }}>
+      
       <div style={headerStyle}>
-        <button onClick={() => setIsTracking(!isTracking)} style={{...controlBtn, backgroundColor: isTracking ? '#ff4444' : '#22c55e'}}>
-          {isTracking ? <Square size={18}/> : <Play size={18}/>}
-        </button>
-        {isTracking && (
-          <button onClick={() => setShowModal(true)} style={{...controlBtn, backgroundColor: '#f59e0b'}}>
-            <Camera size={18}/>
+        {!isTracking ? (
+          <button onClick={() => setIsTracking(true)} style={{...controlBtn, backgroundColor: '#00A8FF', flex: 2}}>
+            <Play size={20}/> <span style={{marginLeft: 8}}>Iniciar Corrida</span>
           </button>
+        ) : (
+          <>
+            <button onClick={() => setIsTracking(false)} style={{...controlBtn, backgroundColor: '#ff4444'}}>
+              <Square size={18}/>
+            </button>
+            <button onClick={() => setShowModal(true)} style={{...controlBtn, backgroundColor: '#00A8FF', flex: 2}}>
+              <Camera size={20}/> <span style={{marginLeft: 8}}>Ocorrência</span>
+            </button>
+          </>
         )}
-        <button onClick={handleLogout} style={{...controlBtn, backgroundColor: '#6b7280'}}>
-          <LogOut size={18}/>
+        <button onClick={handleNewRun} style={{...controlBtn, backgroundColor: '#6b7280', fontSize: '11px'}}>
+          <RefreshCw size={14} style={{marginRight: 4}}/> Reiniciar
         </button>
       </div>
 
       {position && !isNaN(position[0]) ? (
         <MapContainer center={position} zoom={17} zoomControl={false} style={{ height: '100%', width: '100%' }}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Polyline positions={path} color="#ff4444" weight={5} />
+          <Polyline positions={path} color="#00A8FF" weight={6} />
           <Marker position={position} icon={userIcon} />
           {markers.map((m, i) => (
-            <Marker key={i} position={m.pos} icon={redIcon} />
+            <Marker key={i} position={m.pos} icon={redIcon}>
+              <Popup>
+                <strong>{m.categoria}</strong><br/>
+                {m.detalhes}
+              </Popup>
+            </Marker>
           ))}
           <AutoCenter coords={position} />
         </MapContainer>
       ) : (
-        <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>A localizar GPS...</div>
+        <div style={loadingArea}><MapPin className="animate-bounce" /> Buscando Sinal GPS...</div>
       )}
 
       {showModal && (
         <div style={overlay}>
           <div style={modalStyle}>
-            <h3>Nova Ocorrência</h3>
+            <h3 style={{color: '#00A8FF', margin: '0 0 15px 0'}}>Nova Ocorrência</h3>
             
-            {/* INPUT COM CAPTURE="CAMERA" PARA FORÇAR O ANDROID */}
-            <input 
-              type="file" 
-              accept="image/*" 
-              capture="camera" 
-              ref={fileInputRef} 
-              onChange={(e) => {
+            <input type="file" accept="image/*" capture="camera" ref={fileInputRef} onChange={(e) => {
                  const file = e.target.files[0];
                  if (file) {
                    const reader = new FileReader();
                    reader.onloadend = () => setTempPhoto(reader.result);
                    reader.readAsDataURL(file);
                  }
-              }} 
-              style={{ display: 'none' }} 
-            />
+            }} style={{ display: 'none' }} />
 
             <div onClick={() => fileInputRef.current.click()} style={dropzone}>
-              {tempPhoto ? (
-                <img src={tempPhoto} style={{width:'100%', borderRadius: '10px'}} alt="Preview" />
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                  <Camera size={30} />
-                  <span>Tirar Foto</span>
-                </div>
-              )}
+              {tempPhoto ? <img src={tempPhoto} style={{width:'100%', borderRadius: '10px'}} /> : 
+              <div style={{color: '#00A8FF'}}><Camera size={30}/><div style={{fontWeight:'bold'}}>CLICK AQUI</div></div>}
             </div>
 
-            <button onClick={() => {
-              setMarkers([...markers, { pos: position, foto: tempPhoto }]);
-              setShowModal(false); setTempPhoto(null);
-            }} style={{...mainBtn, width: '100%'}} disabled={!tempPhoto}>Confirmar</button>
-            <button onClick={() => { setShowModal(false); setTempPhoto(null); }} style={{ background: 'none', border: 'none', marginTop: '15px', color: '#666', cursor: 'pointer' }}>Cancelar</button>
+            {/* SEÇÃO DE SUGESTÕES (TAGS SEPARADAS) */}
+            <p style={labelStyle}>Selecione o tipo de barreira:</p>
+            <div style={tagGrid}>
+               {["Buraco", "Calçada Estreita", "Degrau", "Rampa Inexistente"].map(tag => (
+                 <button key={tag} 
+                   onClick={() => setSugestaoSelecionada(tag)} 
+                   style={{...tagBtn, backgroundColor: sugestaoSelecionada === tag ? '#00A8FF' : '#FFF', color: sugestaoSelecionada === tag ? '#FFF' : '#00A8FF'}}>
+                   {tag}
+                 </button>
+               ))}
+            </div>
+
+            {/* CAMPO DE TEXTO INDEPENDENTE */}
+            <p style={labelStyle}>Observações adicionais:</p>
+            <textarea 
+              style={inputStyle} 
+              placeholder="Ex: Próximo ao poste x..." 
+              value={textoLivre}
+              onChange={e => setTextoLivre(e.target.value)}
+            />
+
+            <button onClick={salvarOcorrencia} style={{...mainBtn, width: '100%'}} disabled={!tempPhoto}>SALVAR REGISTRO</button>
+            <button onClick={() => setShowModal(false)} style={cancelLink}>Cancelar</button>
           </div>
         </div>
       )}
@@ -159,15 +197,20 @@ function App() {
 }
 
 // --- ESTILOS ---
-const containerStyle = { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f3f4f6', fontFamily: 'sans-serif' };
-const cardStyle = { backgroundColor: 'white', padding: '30px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', textAlign: 'center', width: '85%', maxWidth: '350px' };
-const logoCircle = { width: '60px', height: '60px', backgroundColor: '#22c55e', borderRadius: '20px', margin: '0 auto 15px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' };
-const inputStyle = { width: '100%', padding: '12px', marginBottom: '12px', borderRadius: '12px', border: '1px solid #ddd', boxSizing: 'border-box' };
-const mainBtn = { backgroundColor: '#22c55e', color: 'white', border: 'none', padding: '14px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', width: '100%' };
-const headerStyle = { position: 'absolute', top: '20px', zIndex: 1000, width: '100%', display: 'flex', justifyContent: 'center', gap: '10px' };
-const controlBtn = { border: 'none', padding: '15px', borderRadius: '50%', color: 'white', boxShadow: '0 4px 10px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' };
-const overlay = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' };
-const modalStyle = { backgroundColor: 'white', padding: '25px', borderRadius: '25px', width: '80%', maxWidth: '320px', textAlign: 'center' };
-const dropzone = { border: '2px dashed #ccc', borderRadius: '15px', padding: '30px', marginBottom: '15px', color: '#666', fontWeight: 'bold', cursor: 'pointer' };
+const containerStyle = { height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#F0F8FF', fontFamily: 'sans-serif' };
+const cardStyle = { backgroundColor: 'white', padding: '35px', borderRadius: '30px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', textAlign: 'center', width: '85%', maxWidth: '350px', borderTop: '8px solid #00A8FF' };
+const logoCircle = { width: '60px', height: '60px', backgroundColor: '#00A8FF', borderRadius: '18px', margin: '0 auto 15px', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' };
+const inputStyle = { width: '100%', padding: '12px', marginBottom: '15px', borderRadius: '10px', border: '1px solid #DDD', boxSizing: 'border-box', backgroundColor: '#F9F9F9', fontSize: '14px' };
+const mainBtn = { backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: '16px', borderRadius: '15px', fontWeight: 'bold', cursor: 'pointer', fontSize: '14px' };
+const headerStyle = { position: 'absolute', top: '20px', zIndex: 1000, width: '94%', left: '3%', display: 'flex', gap: '8px' };
+const controlBtn = { border: 'none', padding: '12px', borderRadius: '16px', color: 'white', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', cursor: 'pointer' };
+const overlay = { position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' };
+const modalStyle = { backgroundColor: 'white', padding: '25px', borderRadius: '25px', width: '85%', maxWidth: '340px', textAlign: 'center' };
+const dropzone = { border: '2px dashed #00A8FF', backgroundColor: '#F0F8FF', borderRadius: '15px', padding: '20px', marginBottom: '15px', cursor: 'pointer' };
+const tagGrid = { display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '15px', justifyContent: 'center' };
+const tagBtn = { padding: '8px 12px', borderRadius: '10px', border: '1px solid #00A8FF', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', transition: '0.2s' };
+const labelStyle = { fontSize: '12px', color: '#666', textAlign: 'left', marginBottom: '5px', fontWeight: 'bold' };
+const cancelLink = { background: 'none', border: 'none', marginTop: '15px', color: '#999', cursor: 'pointer', fontSize: '13px' };
+const loadingArea = { display: 'flex', flexDirection: 'column', height: '100%', alignItems: 'center', justifyContent: 'center', color: '#00A8FF', fontWeight: 'bold', gap: '10px' };
 
 export default App;
