@@ -40,7 +40,7 @@ const ControlHUD = ({ isTracking, onStart, onStop, onOpenModal, onReset }) => {
 // --- ESTILOS ---
 const floatingContainer = { 
   position: 'absolute', 
-  bottom: '80px', // Aumentamos de 30px para 80px para fugir dos botões do sistema
+  bottom: '100px', // Aumentamos de 30px para 80px para fugir dos botões do sistema
   right: '20px', 
   zIndex: 1000, 
   display: 'flex', 
