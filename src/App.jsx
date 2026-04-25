@@ -9,23 +9,50 @@ import { useGPS } from './hooks/useGPS';
 import { db } from './firebase'; 
 import { ref, push, set } from "firebase/database";
 
+// --- FUNÇÃO AUXILIAR PARA COMPRIMIR A FOTO ---
+const compressImage = (base64Str, maxWidth = 600, maxHeight = 600) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+          height = maxHeight;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.7)); // Qualidade em 70%
+    };
+  });
+};
+
 export default function App() {
-  // 1. ESTADOS GLOBAIS
   const [isRegistered, setIsRegistered] = useState(false);
   const [perfil, setPerfil] = useState({ nome: '', email: '', vinculo: '' });
   const [isTracking, setIsTracking] = useState(false);
   const [markers, setMarkers] = useState([]);
   const [showModal, setShowModal] = useState(false);
 
-  // 2. ESTADOS DO FORMULÁRIO (OCORRÊNCIA)
   const [tempPhoto, setTempPhoto] = useState(null);
   const [categoria, setCategoria] = useState("");
   const [texto, setTexto] = useState("");
 
-  // 3. HOOK DE GPS
   const { position, path, setPath } = useGPS(isTracking);
 
-  // 4. CARREGAR DADOS SALVOS AO INICIAR
   useEffect(() => {
     const p = localStorage.getItem('auditor_perfil');
     if (p) { 
@@ -38,7 +65,6 @@ export default function App() {
     if (pt) setPath(JSON.parse(pt));
   }, [setPath]);
 
-  // 5. FUNÇÕES DE AÇÃO
   const handleLogin = () => {
     if (perfil.nome && perfil.email && perfil.vinculo) {
       localStorage.setItem('auditor_perfil', JSON.stringify(perfil));
@@ -48,38 +74,49 @@ export default function App() {
     }
   };
 
-  const salvarOcorrencia = useCallback(() => {
-    const nova = { 
-      pos: position || { latitude: 0, longitude: 0 }, 
-      categoria: categoria || "Geral", 
-      detalhes: texto || "", 
-      foto: tempPhoto || null, 
-      autor: perfil.nome || "Usuário Anônimo",
-      perfilUsuario: perfil.vinculo || "Não informado",
-      timestamp: new Date().getTime(),
-      horario: new Date().toLocaleString()
-    };
-
-    // --- ENVIO PARA O FIREBASE (NUVEM) ---
+  // --- FUNÇÃO SALVAR ATUALIZADA COM COMPRESSÃO ---
+  const salvarOcorrencia = useCallback(async () => {
     try {
+      // 1. Reduz o tamanho da foto se ela existir
+      let fotoFinal = null;
+      if (tempPhoto) {
+        console.log("Comprimindo imagem...");
+        fotoFinal = await compressImage(tempPhoto);
+      }
+
+      const nova = { 
+        pos: position || { latitude: 0, longitude: 0 }, 
+        categoria: categoria || "Geral", 
+        detalhes: texto || "", 
+        foto: fotoFinal, // Foto leve aqui
+        autor: perfil.nome || "Usuário Anônimo",
+        perfilUsuario: perfil.vinculo || "Não informado",
+        timestamp: new Date().getTime(),
+        horario: new Date().toLocaleString()
+      };
+
+      // 2. Envio para Firebase
       const ocorrenciasRef = ref(db, 'ocorrencias');
       const novaRef = push(ocorrenciasRef);
-      set(novaRef, nova);
+      await set(novaRef, nova);
+      
       console.log("Sucesso no Firebase!");
-    } catch (error) {
-      console.error("Erro ao enviar para nuvem:", error);
-    }
 
-    // --- SALVAMENTO LOCAL (BACKUP) ---
-    const lista = [...markers, nova];
-    setMarkers(lista);
-    localStorage.setItem('auditor_markers', JSON.stringify(lista));
-    
-    // Resetar campos
-    setShowModal(false); 
-    setTempPhoto(null); 
-    setCategoria(""); 
-    setTexto("");
+      // 3. Atualização Local
+      const lista = [...markers, nova];
+      setMarkers(lista);
+      localStorage.setItem('auditor_markers', JSON.stringify(lista));
+      
+      // 4. Limpeza
+      setShowModal(false); 
+      setTempPhoto(null); 
+      setCategoria(""); 
+      setTexto("");
+
+    } catch (error) {
+      console.error("Erro no processo de salvamento:", error);
+      alert("Erro ao salvar. Verifique a conexão.");
+    }
   }, [position, categoria, texto, tempPhoto, markers, perfil]);
 
   const handleReset = () => {
@@ -93,16 +130,13 @@ export default function App() {
     }
   };
 
-  // 6. RENDERIZAÇÃO CONDICIONAL
   if (!isRegistered) {
     return <LoginScreen perfil={perfil} setPerfil={setPerfil} onLogin={handleLogin} />;
   }
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', overflow: 'hidden' }}>
-      
       <MapDisplay position={position} path={path} markers={markers} />
-      
       <ControlHUD 
         isTracking={isTracking}
         onStart={() => setIsTracking(true)}
@@ -110,7 +144,6 @@ export default function App() {
         onOpenModal={() => setShowModal(true)}
         onReset={handleReset}
       />
-
       {showModal && (
         <OccurrenceModal 
           tempPhoto={tempPhoto} setTempPhoto={setTempPhoto}
