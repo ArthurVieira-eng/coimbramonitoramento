@@ -40,13 +40,13 @@ const ControlHUD = ({ isTracking, onStart, onStop, onOpenModal, onReset }) => {
 // --- ESTILOS ---
 const floatingContainer = { 
   position: 'absolute', 
-  bottom: '30px', 
+  bottom: '80px', // Aumentamos de 30px para 80px para fugir dos botões do sistema
   right: '20px', 
   zIndex: 1000, 
   display: 'flex', 
   flexDirection: 'column', 
   gap: '15px', 
-  alignItems: 'flex-end' // Alinha tudo à direita para o texto não sobrepor o mapa no centro
+  alignItems: 'flex-end'
 };
 
 const actionBtn = { 
