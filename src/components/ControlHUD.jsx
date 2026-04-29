@@ -1,7 +1,7 @@
 import React from 'react';
-import { Play, Square, Camera, RefreshCw } from 'lucide-react';
+import { Play, Square, Camera, RefreshCw, LogOut } from 'lucide-react';
 
-const ControlHUD = ({ isTracking, onStart, onStop, onOpenModal, onReset }) => {
+const ControlHUD = ({ isTracking, onStart, onStop, onOpenModal, onReset, onLogout }) => {
   return (
     <div style={floatingContainer}>
       
@@ -28,11 +28,17 @@ const ControlHUD = ({ isTracking, onStart, onStop, onOpenModal, onReset }) => {
         </div>
       )}
 
-      {/* BOTÃO DE REINICIAR - MENOR E DISCRETO */}
-      <button onClick={onReset} style={miniBtn}>
-        <RefreshCw size={16} />
-        <span style={{...labelStyle, color: '#666', fontSize: '10px'}}>Reiniciar</span>
-      </button>
+      {/* BOTÕES SECUNDÁRIOS: REINICIAR E SAIR */}
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button onClick={onLogout} style={miniBtn}>
+          <LogOut size={16} color="#FF4444" />
+          <span style={{...labelStyle, color: '#FF4444', fontSize: '10px'}}>Sair</span>
+        </button>
+        <button onClick={onReset} style={miniBtn}>
+          <RefreshCw size={16} />
+          <span style={{...labelStyle, color: '#666', fontSize: '10px'}}>Reiniciar</span>
+        </button>
+      </div>
     </div>
   );
 };

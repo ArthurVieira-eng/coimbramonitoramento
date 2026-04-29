@@ -25,35 +25,7 @@ const LoginScreen = ({ perfil, setPerfil, onLogin }) => (
         onChange={e => setPerfil({...perfil, email: e.target.value})} 
       />
 
-      <div style={{ marginTop: '15px', marginBottom: '25px', textAlign: 'left', width: '100%' }}>
-        <label style={{ 
-          display: 'block', 
-          marginBottom: '5px', 
-          fontWeight: 'bold', 
-          color: '#374151',
-          fontSize: '14px'
-        }}>
-          Você é deficiente?
-        </label>
-        <select 
-          value={perfil.vinculo || ""} 
-          onChange={(e) => setPerfil({ ...perfil, vinculo: e.target.value })}
-          style={{
-            ...inputStyle,
-            marginBottom: '0',
-            backgroundColor: 'white',
-            color: perfil.vinculo ? '#000' : '#999',
-            outline: 'none',
-            appearance: 'none',
-            cursor: 'pointer'
-          }}
-        >
-          <option value="" disabled>Clique para selecionar...</option>
-          <option value="Sim" style={{ color: '#000' }}>Sim (PCD)</option>
-          <option value="Não/Apoiador" style={{ color: '#000' }}>Não / Apoiador</option>
-          <option value="Parente" style={{ color: '#000' }}>Parente</option>
-        </select>
-      </div>
+
       
       <button onClick={onLogin} style={mainBtn}>ENTRAR NO SISTEMA</button>
     </div>
