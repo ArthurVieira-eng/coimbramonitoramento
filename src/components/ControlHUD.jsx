@@ -7,7 +7,7 @@ const ControlHUD = ({ isTracking, onStart, onStop, onOpenModal, onReset }) => {
       
       {/* BOTÃO PRINCIPAL: INICIAR OU PAUSAR */}
       {!isTracking ? (
-        <button onClick={onStart} style={{...actionBtn, backgroundColor: '#22C55E'}}>
+        <button onClick={onStart} style={{...actionBtn, backgroundColor: '#00A8FF'}}>
           <Play size={20} fill="white" />
           <span style={labelStyle}>Iniciar Percurso</span>
         </button>

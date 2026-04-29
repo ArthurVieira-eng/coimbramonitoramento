@@ -35,7 +35,7 @@ const compressImage = (base64Str, maxWidth = 600, maxHeight = 600) => {
       canvas.height = height;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL('image/jpeg', 0.7)); // Qualidade em 70%
+      resolve(canvas.toDataURL('image/jpeg', 0.7)); 
     };
   });
 };
@@ -46,12 +46,16 @@ export default function App() {
   const [isTracking, setIsTracking] = useState(false);
   const [markers, setMarkers] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [tempPhoto, setTempPhoto] = useState(null);
   const [categoria, setCategoria] = useState("");
   const [texto, setTexto] = useState("");
 
-  const { position, path, setPath } = useGPS(isTracking);
+  // --- MUDANÇA AQUI ---
+  // Passamos isRegistered para o GPS ligar o sensor no Login
+  // Passamos isTracking para o GPS saber quando gravar o rastro (path)
+  const { position, path, setPath } = useGPS(isRegistered, isTracking);
 
   useEffect(() => {
     const p = localStorage.getItem('auditor_perfil');
@@ -74,40 +78,45 @@ export default function App() {
     }
   };
 
-  // --- FUNÇÃO SALVAR ATUALIZADA COM COMPRESSÃO ---
   const salvarOcorrencia = useCallback(async () => {
+    if (isSaving) return;
+
+    // --- SEGURANÇA ---
+    // Impede o envio se o GPS ainda for null (evita enviar 0,0 ou erro)
+    if (!position) {
+      alert("📍 Ainda obtendo sinal de GPS... Aguarde um instante.");
+      return;
+    }
+
     try {
-      // 1. Reduz o tamanho da foto se ela existir
+      setIsSaving(true);
+
       let fotoFinal = null;
       if (tempPhoto) {
-        console.log("Comprimindo imagem...");
         fotoFinal = await compressImage(tempPhoto);
       }
 
       const nova = { 
-        pos: position || { latitude: 0, longitude: 0 }, 
+        pos: position, // Agora position já vem limpa do hook
         categoria: categoria || "Geral", 
         detalhes: texto || "", 
-        foto: fotoFinal, // Foto leve aqui
+        foto: fotoFinal,
         autor: perfil.nome || "Usuário Anônimo",
         perfilUsuario: perfil.vinculo || "Não informado",
         timestamp: new Date().getTime(),
         horario: new Date().toLocaleString()
       };
 
-      // 2. Envio para Firebase
       const ocorrenciasRef = ref(db, 'ocorrencias');
       const novaRef = push(ocorrenciasRef);
       await set(novaRef, nova);
       
-      console.log("Sucesso no Firebase!");
+      alert("✅ Registro concluído com sucesso!");
 
-      // 3. Atualização Local
       const lista = [...markers, nova];
       setMarkers(lista);
       localStorage.setItem('auditor_markers', JSON.stringify(lista));
       
-      // 4. Limpeza
       setShowModal(false); 
       setTempPhoto(null); 
       setCategoria(""); 
@@ -115,9 +124,11 @@ export default function App() {
 
     } catch (error) {
       console.error("Erro no processo de salvamento:", error);
-      alert("Erro ao salvar. Verifique a conexão.");
+      alert("❌ Erro ao salvar. Verifique sua conexão.");
+    } finally {
+      setIsSaving(false);
     }
-  }, [position, categoria, texto, tempPhoto, markers, perfil]);
+  }, [position, categoria, texto, tempPhoto, markers, perfil, isSaving]);
 
   const handleReset = () => {
     if(window.confirm("Deseja limpar todos os dados da corrida atual?")) {
@@ -136,7 +147,9 @@ export default function App() {
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', overflow: 'hidden' }}>
+      {/* Passamos a posição que agora começa como null */}
       <MapDisplay position={position} path={path} markers={markers} />
+      
       <ControlHUD 
         isTracking={isTracking}
         onStart={() => setIsTracking(true)}
@@ -144,6 +157,7 @@ export default function App() {
         onOpenModal={() => setShowModal(true)}
         onReset={handleReset}
       />
+      
       {showModal && (
         <OccurrenceModal 
           tempPhoto={tempPhoto} setTempPhoto={setTempPhoto}
@@ -151,6 +165,7 @@ export default function App() {
           texto={texto} setTexto={setTexto}
           onSave={salvarOcorrencia}
           onClose={() => setShowModal(false)}
+          isSaving={isSaving}
         />
       )}
     </div>
