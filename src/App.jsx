@@ -9,7 +9,7 @@ import OccurrencesList from './admin/pages/OccurrencesList';
 
 export default function App() {
   return (
-    <BrowserRouter basename="/coimbra">
+    <BrowserRouter>
       <Routes>
         {/* App do Cliente (App principal) */}
         <Route path="/" element={<ClientApp />} />
