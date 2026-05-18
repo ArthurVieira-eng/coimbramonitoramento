@@ -1,7 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, X, Mic } from 'lucide-react';
 
-// Adicionei 'isSaving' nas props aqui embaixo
 const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, texto, setTexto, onSave, onClose, isSaving }) => {
   const fileRef = useRef(null);
   const recognitionRef = useRef(null);
@@ -13,7 +12,7 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'pt-BR';
+      recognitionRef.current.lang = 'pt-PT'; // Ajustado para Português de Portugal
 
       recognitionRef.current.onresult = (event) => {
         let finalTranscript = '';
@@ -48,12 +47,23 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
     }
   };
 
+  // Lógica do Ponto 4: Validar se pelo menos UM campo foi preenchido
+  const handleValidationAndSave = () => {
+    const temAlgo = tempPhoto || texto.trim().length > 0 || categoria;
+    
+    if (!temAlgo) {
+      alert("Por favor, preencha pelo menos uma informação (foto, categoria ou observação) para o seu registo.");
+      return;
+    }
+    
+    onSave();
+  };
+
   return (
     <div style={overlay}>
       <div style={modalStyle}>
         <div style={{display:'flex', justifyContent:'space-between', marginBottom: 15}}>
-          <h3 style={{margin:0, color:'#00A8FF'}}>Registrar Barreira</h3>
-          {/* Desativar o X enquanto salva para evitar que ela feche no meio do envio */}
+          <h3 style={{margin:0, color:'#00A8FF'}}>Registar Barreira</h3>
           {!isSaving && <X onClick={onClose} style={{cursor:'pointer'}} />}
         </div>
 
@@ -61,17 +71,20 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
           <div onClick={() => !isSaving && fileRef.current.click()} style={dropzone}>
             {tempPhoto ? <img src={tempPhoto} style={{width:'100%', borderRadius:8}} /> : <Camera size={30} />}
             <input type="file" accept="image/*" capture="camera" ref={fileRef} hidden onChange={e => {
-              const reader = new FileReader();
-              reader.onload = () => setTempPhoto(reader.result);
-              reader.readAsDataURL(e.target.files[0]);
+              if (e.target.files && e.target.files[0]) {
+                const reader = new FileReader();
+                reader.onload = () => setTempPhoto(reader.result);
+                reader.readAsDataURL(e.target.files[0]);
+              }
             }} />
           </div>
 
           <div style={tagGrid}>
-            {["Buraco", "Degrau", "Rampa", "Calçada"].map(t => (
+            {/* Ponto 3: Adicionado Elevador, Piso e Outros */}
+            {["Buraco", "Degrau", "Rampa", "Calçada", "Elevador", "Piso", "Outros"].map(t => (
               <button 
                 key={t} 
-                disabled={isSaving} // Desativa as tags enquanto salva
+                disabled={isSaving} 
                 onClick={() => setCategoria(t)} 
                 style={{...tagBtn, backgroundColor: categoria === t ? '#00A8FF' : '#FFF', color: categoria === t ? '#FFF' : '#00A8FF', opacity: isSaving ? 0.6 : 1}}
               >
@@ -116,17 +129,16 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
             )}
           </div>
 
-          {/* MUDANÇA PRINCIPAL NO BOTÃO AQUI ABAIXO */}
           <button 
-            onClick={onSave} 
+            onClick={handleValidationAndSave} 
             style={{
                 ...saveBtn, 
-                backgroundColor: isSaving ? '#CCC' : '#00A8FF', // Fica cinza enquanto envia
+                backgroundColor: isSaving ? '#CCC' : '#00A8FF', 
                 cursor: isSaving ? 'not-allowed' : 'pointer'
             }} 
-            disabled={!tempPhoto || isSaving}
+            disabled={isSaving}
           >
-            {isSaving ? "ENVIANDO PARA NUVEM..." : "SALVAR REGISTRO"}
+            {isSaving ? "A ENVIAR PARA NUVEM..." : "SALVAR REGISTO"}
           </button>
         </div>
       </div>
@@ -134,12 +146,11 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
   );
 };
 
-// ... os estilos permanecem os mesmos ...
 const overlay = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 };
 const modalStyle = { backgroundColor: 'white', borderRadius: 20, width: '100%', maxWidth: 360, padding: 20 };
-const dropzone = { border: '2px dashed #00A8FF', height: 120, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 15, overflow:'hidden' };
+const dropzone = { border: '2px dashed #00A8FF', height: 120, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 15, overflow:'hidden', cursor: 'pointer' };
 const tagGrid = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 15 };
-const tagBtn = { padding: '8px 12px', borderRadius: 10, border: '1px solid #00A8FF', fontSize: 12, fontWeight: 'bold' };
+const tagBtn = { padding: '8px 12px', borderRadius: 10, border: '1px solid #00A8FF', fontSize: 12, fontWeight: 'bold', cursor: 'pointer' };
 const inputStyle = { width: '100%', padding: 12, marginBottom: 10, borderRadius: 10, border: '1px solid #DDD', minHeight: '80px', fontFamily: 'inherit' };
 const saveBtn = { width: '100%', backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: 15, borderRadius: 10, fontWeight: 'bold' };
 

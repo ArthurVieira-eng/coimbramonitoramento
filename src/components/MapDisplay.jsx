@@ -27,10 +27,11 @@ function MapClickHandler({ onMapClick }) {
 }
 
 const MapDisplay = memo(({ position, path, markers, clickedPosition, onMapClick }) => {
-  // Coordenada central de Portugal (Coimbra) para o mapa não abrir no vazio
+  // PONTO 6: Centro neutro (Zoom mais aberto se não houver posição)
+  // Coloquei Coimbra como padrão caso tudo falhe, mas o GPS agora prioriza o utilizador.
   const defaultCenter = [40.2033, -8.4103];
 
-  // SE NÃO TIVER POSIÇÃO AINDA: Mostra uma tela de carregamento amigável
+  // SE NÃO TIVER POSIÇÃO AINDA: Mostra uma tela amigável
   if (!position) {
     return (
       <div style={{ 
@@ -41,8 +42,9 @@ const MapDisplay = memo(({ position, path, markers, clickedPosition, onMapClick 
           border: '4px solid rgba(0, 168, 255, 0.1)', borderLeft: '4px solid #00A8FF',
           borderRadius: '50%', width: '40px', height: '40px', animation: 'spin 1s linear infinite' 
         }}></div>
-        <p style={{ marginTop: '15px', color: '#00A8FF', fontWeight: 'bold', fontFamily: 'sans-serif' }}>
-          Obtendo localização em Portugal...
+        <p style={{ marginTop: '15px', color: '#00A8FF', fontWeight: 'bold', fontFamily: 'sans-serif', textAlign: 'center', padding: '0 20px' }}>
+          A obter localização atual...<br/>
+          <span style={{fontSize: '12px', fontWeight: 'normal'}}>Por favor, aceite a permissão de GPS no seu telemóvel.</span>
         </p>
         <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
       </div>
@@ -58,13 +60,10 @@ const MapDisplay = memo(({ position, path, markers, clickedPosition, onMapClick 
     >
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
       
-      {/* Rastro do caminho */}
-      <Polyline positions={path} color="#00A8FF" weight={6} />
+      <Polyline positions={path} color="#00A8FF" weight={6} smoothFactor={1.5} />
       
-      {/* Marcador do Usuário (SÓ APARECE SE TIVER POSIÇÃO) */}
       {position && <Marker position={position} icon={userIcon} />}
       
-      {/* Ocorrências salvas */}
       {markers.map((m, i) => (
         <Marker key={i} position={m.pos || [m.latitude, m.longitude]} icon={redIcon}>
           <Popup minWidth={220} maxWidth={280}>
@@ -73,16 +72,10 @@ const MapDisplay = memo(({ position, path, markers, clickedPosition, onMapClick 
                 <img 
                   src={m.foto} 
                   alt="Foto da Barreira" 
-                  style={{ 
-                    width: '100%', 
-                    height: '140px', 
-                    objectFit: 'cover', 
-                    borderRadius: '8px', 
-                    marginBottom: '10px',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.1)'
-                  }} 
+                  style={{ width: '100%', height: '140px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }} 
                 />
               )}
+              {/* PONTO 2: Tradução para Registo */}
               <h4 style={{ margin: '0 0 5px 0', color: '#00A8FF', fontSize: '16px', fontWeight: 'bold' }}>
                 {m.categoria}
               </h4>
@@ -92,34 +85,23 @@ const MapDisplay = memo(({ position, path, markers, clickedPosition, onMapClick 
                 </p>
               )}
               
-              <div style={{ 
-                borderTop: '1px solid #EEE', 
-                paddingTop: '8px', 
-                fontSize: '12px', 
-                color: '#777',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '3px'
-              }}>
+              <div style={{ borderTop: '1px solid #EEE', paddingTop: '8px', fontSize: '12px', color: '#777', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <span><strong style={{color: '#555'}}>Por:</strong> {m.autor}</span>
                 {m.horario && <span><strong style={{color: '#555'}}>Data:</strong> {m.horario}</span>}
-                {m.endereco && <span><strong style={{color: '#555'}}>Endereço:</strong> {m.endereco}</span>}
+                {m.endereco && <span><strong style={{color: '#555'}}>Morada:</strong> {m.endereco}</span>}
               </div>
             </div>
           </Popup>
         </Marker>
       ))}
 
-      {/* Rastro de Clique (Manual Location) */}
       {clickedPosition && (
         <Marker position={clickedPosition} icon={clickIcon}>
           <Popup>Posição selecionada manualmente</Popup>
         </Marker>
       )}
 
-      {/* Centraliza automaticamente quando a posição mudar */}
       <AutoCenter coords={position} />
-
       <MapClickHandler onMapClick={onMapClick} />
     </MapContainer>
   );
