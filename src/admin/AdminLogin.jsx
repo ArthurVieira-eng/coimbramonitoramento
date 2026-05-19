@@ -10,8 +10,13 @@ export default function AdminLogin() {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    // MVP Authentication
-    if (email === 'admin@admin.com' && password === 'admin123') {
+    
+    // Limpa espaços extras e força minúsculas no e-mail
+    const emailLimpo = email.trim().toLowerCase();
+    const passwordLimpa = password.trim();
+
+    // MVP Authentication blindada
+    if (emailLimpo === 'admin@admin.com' && passwordLimpa === 'admin123') {
       localStorage.setItem('adminToken', 'true');
       navigate('/admin');
     } else {
