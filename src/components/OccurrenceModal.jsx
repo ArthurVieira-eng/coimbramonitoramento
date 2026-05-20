@@ -1,62 +1,66 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { Camera, X, Mic } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { Camera, X, Mic, Square, Play, Trash2 } from 'lucide-react';
 
-const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, texto, setTexto, onSave, onClose, isSaving }) => {
+const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, texto, setTexto, onSave, onClose, isSaving, tempAudio, setTempAudio }) => {
   const fileRef = useRef(null);
-  const recognitionRef = useRef(null);
-  const [isListening, setIsListening] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  
+  const [isRecording, setIsRecording] = useState(false);
 
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = true;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'pt-PT'; // Ajustado para Português de Portugal
+  // FUNÇÃO PARA INICIAR A GRAVAÇÃO DO ÁUDIO REAL
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
 
-      recognitionRef.current.onresult = (event) => {
-        let finalTranscript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          if (event.results[i].isFinal) {
-            finalTranscript += event.results[i][0].transcript + ' ';
-          }
-        }
-        if (finalTranscript) {
-          setTexto(prev => prev + finalTranscript);
+      mediaRecorderRef.current.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
         }
       };
 
-      recognitionRef.current.onerror = (event) => {
-        console.error("Erro no reconhecimento de voz:", event.error);
-        setIsListening(false);
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        
+        // Converter o Blob de áudio para Base64 para enviar facilmente para o Firebase
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          setTempAudio(reader.result); // Guarda o áudio Base64 no componente pai
+        };
+
+        // Fechar os canais do microfone para libertar o dispositivo
+        stream.getTracks().forEach(track => track.stop());
       };
 
-      recognitionRef.current.onend = () => {
-        setIsListening(false);
-      };
-    }
-  }, [setTexto]);
-
-  const toggleListen = () => {
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-    } else {
-      recognitionRef.current?.start();
-      setIsListening(true);
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Erro ao aceder ao microfone:", err);
+      alert("Não foi possível aceder ao microfone. Verifique as permissões.");
     }
   };
 
-  // Lógica do Ponto 4: Validar se pelo menos UM campo foi preenchido
+  // FUNÇÃO PARA PARAR A GRAVAÇÃO
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  // Lógica de Validação: Aceita foto, texto OR áudio gravado
   const handleValidationAndSave = () => {
-    const temAlgo = tempPhoto || texto.trim().length > 0 || categoria;
+    const temAlgo = tempPhoto || texto.trim().length > 0 || categoria || tempAudio;
     
     if (!temAlgo) {
-      alert("Por favor, preencha pelo menos uma informação (foto, categoria ou observação) para o seu registo.");
+      alert("Por favor, preencha pelo menos uma informação (foto, áudio, categoria ou observação).");
       return;
     }
     
-    onSave();
+    onSave(); // Executa o salvamento no ClientApp
   };
 
   return (
@@ -68,8 +72,9 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
         </div>
 
         <div style={{maxHeight: '60vh', overflowY: 'auto'}}>
+          {/* Dropzone da Foto */}
           <div onClick={() => !isSaving && fileRef.current.click()} style={dropzone}>
-            {tempPhoto ? <img src={tempPhoto} style={{width:'100%', borderRadius:8}} /> : <Camera size={30} />}
+            {tempPhoto ? <img src={tempPhoto} alt="Preview" style={{width:'100%', borderRadius:8}} /> : <Camera size={30} />}
             <input type="file" accept="image/*" capture="camera" ref={fileRef} hidden onChange={e => {
               if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
@@ -79,8 +84,8 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
             }} />
           </div>
 
+          {/* Categorias */}
           <div style={tagGrid}>
-            {/* Ponto 3: Adicionado Elevador, Piso e Outros */}
             {["Buraco", "Degrau", "Rampa", "Calçada", "Elevador", "Piso", "Outros"].map(t => (
               <button 
                 key={t} 
@@ -93,40 +98,51 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
             ))}
           </div>
 
-          <div style={{ position: 'relative', marginBottom: 10 }}>
+          {/* SEÇÃO DE GRAVAÇÃO DE ÁUDIO REAL */}
+          <div style={audioContainer}>
+            <p style={{margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#555'}}>Relato em Áudio:</p>
+            
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              {!tempAudio ? (
+                <button
+                  type="button"
+                  onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isSaving}
+                  style={{
+                    ...audioBtn,
+                    backgroundColor: isRecording ? '#FF4444' : '#00A8FF',
+                    color: 'white'
+                  }}
+                >
+                  {isRecording ? <Square size={18} /> : <Mic size={18} />}
+                  {isRecording ? "Parar Gravação" : "Gravar Áudio"}
+                </button>
+              ) : (
+                <div style={{display: 'flex', alignItems: 'center', gap: '10px', width: '100%'}}>
+                  {/* Player para o utilizador ouvir o que gravou antes de enviar */}
+                  <audio src={tempAudio} controls style={{height: '35px', flex: 1}} />
+                  <button 
+                    onClick={() => setTempAudio(null)} 
+                    style={{background: 'none', border: 'none', color: '#FF4444', cursor: 'pointer'}}
+                    title="Apagar áudio"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                </div>
+              )}
+            </div>
+            {isRecording && <span style={recordingText}>● A gravar o relato...</span>}
+          </div>
+
+          {/* Campo de Texto Tradicional Opcional */}
+          <div style={{ position: 'relative', marginBottom: 15 }}>
             <textarea 
-              style={{...inputStyle, marginBottom: 0, paddingRight: 40}} 
-              placeholder="Observações (digite ou fale)..." 
+              style={inputStyle} 
+              placeholder="Observações por texto (opcional)..." 
               value={texto} 
               disabled={isSaving}
               onChange={e => setTexto(e.target.value)} 
             />
-            {recognitionRef.current && (
-              <button
-                type="button"
-                onClick={toggleListen}
-                disabled={isSaving}
-                title={isListening ? "Parar de ouvir" : "Falar observação"}
-                style={{
-                  position: 'absolute',
-                  right: 10,
-                  top: 10,
-                  background: 'none',
-                  border: 'none',
-                  color: isListening ? '#FF4444' : '#00A8FF',
-                  cursor: 'pointer',
-                  padding: 5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '50%',
-                  backgroundColor: isListening ? 'rgba(255, 68, 68, 0.1)' : 'transparent',
-                  transition: 'background-color 0.3s'
-                }}
-              >
-                <Mic size={24} />
-              </button>
-            )}
           </div>
 
           <button 
@@ -138,7 +154,7 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
             }} 
             disabled={isSaving}
           >
-            {isSaving ? "A ENVIAR PARA NUVEM..." : "SALVAR REGISTO"}
+            {isSaving ? "A ENVIAR PARA A NUVEM..." : "SALVAR REGISTO"}
           </button>
         </div>
       </div>
@@ -151,7 +167,10 @@ const modalStyle = { backgroundColor: 'white', borderRadius: 20, width: '100%', 
 const dropzone = { border: '2px dashed #00A8FF', height: 120, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 15, overflow:'hidden', cursor: 'pointer' };
 const tagGrid = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 15 };
 const tagBtn = { padding: '8px 12px', borderRadius: 10, border: '1px solid #00A8FF', fontSize: 12, fontWeight: 'bold', cursor: 'pointer' };
-const inputStyle = { width: '100%', padding: 12, marginBottom: 10, borderRadius: 10, border: '1px solid #DDD', minHeight: '80px', fontFamily: 'inherit' };
+const inputStyle = { width: '100%', padding: 12, marginBottom: 0, borderRadius: 10, border: '1px solid #DDD', minHeight: '60px', fontFamily: 'inherit', resize: 'none' };
 const saveBtn = { width: '100%', backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: 15, borderRadius: 10, fontWeight: 'bold' };
+const audioContainer = { backgroundColor: '#F9F9F9', padding: '12px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #EEE' };
+const audioBtn = { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', width: '100%', justifyContent: 'center' };
+const recordingText = { display: 'block', fontSize: '11px', color: '#FF4444', marginTop: '6px', textAlign: 'center', fontWeight: 'bold', animation: 'pulse 1s infinite' };
 
 export default OccurrenceModal;

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
 import { ref, onValue, update, remove } from 'firebase/database';
-import { Trash2, Image as ImageIcon, MapPin, X } from 'lucide-react';
+import { Trash2, Image as ImageIcon, MapPin, X, Mic } from 'lucide-react';
 
 // Função de Haversine para calcular distância em metros
 function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
@@ -11,8 +11,7 @@ function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = 
     Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); 
   return R * c; 
 }
@@ -100,6 +99,7 @@ export default function OccurrencesList() {
               <th style={thStyle}>Data</th>
               <th style={thStyle}>Tipo</th>
               <th style={thStyle}>Autor</th>
+              <th style={thStyle}>Relato de Voz</th> {/* ALTERADO: Cabeçalho do áudio */}
               <th style={thStyle}>Impacto</th>
               <th style={thStyle}>Localização</th>
               <th style={thStyle}>Status</th>
@@ -127,6 +127,23 @@ export default function OccurrencesList() {
                 <td style={tdStyle}>{item.horario || '-'}</td>
                 <td style={{...tdStyle, fontWeight: 'bold', color: '#334155'}}>{item.categoria}</td>
                 <td style={tdStyle}>{item.autor}</td>
+                
+                {/* ALTERADO: Coluna com o Player de Áudio NTL */}
+                <td style={tdStyle}>
+                  {item.audio ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px' }}>
+                      <Mic size={16} style={{ color: '#00A8FF', flexShrink: 0 }} />
+                      <audio 
+                        src={item.audio} 
+                        controls 
+                        style={{ height: '24px', width: '100%', maxWidth: '150px' }} 
+                      />
+                    </div>
+                  ) : (
+                    <span style={{ color: '#CBD5E1', fontSize: '12px', fontStyle: 'italic' }}>Sem áudio</span>
+                  )}
+                </td>
+
                 <td style={tdStyle}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                     <span style={{ 
@@ -198,7 +215,7 @@ export default function OccurrencesList() {
               src={selectedImage} 
               alt="Ampliada" 
               style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: '10px', objectFit: 'contain', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }} 
-              onClick={e => e.stopPropagation()} // Evita fechar ao clicar na própria imagem
+              onClick={e => e.stopPropagation()} 
             />
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import MapDisplay from '../components/MapDisplay';
 import ControlHUD from '../components/ControlHUD';
 import OccurrenceModal from '../components/OccurrenceModal';
-import LoginScreen from '../components/LoginScreen';
+import LoginScreen from '../components/LoginScreen'; 
 import { useGPS } from '../hooks/useGPS';
 
 // IMPORTAÇÃO DO FIREBASE
@@ -43,7 +43,8 @@ export default function ClientApp() {
 
   const [tempPhoto, setTempPhoto] = useState(null);
   const [categoria, setCategoria] = useState("");
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(""); 
+  const [tempAudio, setTempAudio] = useState(null);
 
   const { position, path, setPath, fallbackActive } = useGPS(isRegistered, isTracking);
   const [clickedPosition, setClickedPosition] = useState(null);
@@ -66,7 +67,6 @@ export default function ClientApp() {
     }
   };
 
-  // --- FUNÇÕES QUE ESTAVAM FALTANDO (RESTAURADAS) ---
   const handleReset = () => {
     if(window.confirm("Deseja limpar todos os dados da corrida atual?")) {
       localStorage.removeItem('auditor_path');
@@ -86,14 +86,20 @@ export default function ClientApp() {
       setPerfil({ nome: '', email: '' });
     }
   };
-  // ------------------------------------------------
 
-  const salvarOcorrencia = useCallback(async () => {
+  // AJUSTADO: Agora a função recebe as coordenadas exatas vindas do Modal
+  const salvarOcorrencia = useCallback(async (coordenadasDoModal) => {
     if (isSaving) return;
-    const finalPos = clickedPosition || position;
+
+    let finalPos = null;
+    if (coordenadasDoModal) {
+      finalPos = [coordenadasDoModal.latitude, coordenadasDoModal.longitude];
+    } else {
+      finalPos = clickedPosition || position;
+    }
 
     if (!finalPos) {
-      alert("📍 Localização obrigatória. Aguarde o GPS ou clique no mapa para marcar.");
+      alert("📍 Localização obrigatória. Verifique se o GPS do telemóvel está ativo.");
       return;
     }
 
@@ -124,12 +130,14 @@ export default function ClientApp() {
         categoria: categoria || "Geral", 
         detalhes: texto || "", 
         foto: fotoFinal,
+        audio: tempAudio,
         autor: perfil.nome || "Utilizador Anónimo",
         emailAutor: perfil.email,
         timestamp: new Date().getTime(),
         horario: new Date().toLocaleString('pt-PT'),
       };
 
+      // Gravação direta em tempo real no Firebase
       const ocorrenciasRef = ref(db, 'ocorrencias');
       await set(push(ocorrenciasRef), nova);
       
@@ -144,16 +152,24 @@ export default function ClientApp() {
       setMarkers(lista);
       localStorage.setItem('auditor_markers', JSON.stringify(lista));
       
+      // ALTERADO: Estados limpos com sucesso, incluindo o áudio!
       setShowModal(false); 
-      setTempPhoto(null); setCategoria(""); setTexto(""); setClickedPosition(null);
+      setTempPhoto(null); 
+      setTempAudio(null); 
+      setCategoria(""); 
+      setTexto(""); 
+      setClickedPosition(null);
 
     } catch (error) {
+      console.error(error);
       alert("❌ Erro ao guardar o registo.");
     } finally {
       setIsSaving(false);
     }
-  }, [position, clickedPosition, categoria, texto, tempPhoto, markers, perfil, isSaving]);
+    // CORRIGIDO: Adicionado tempAudio à lista de dependências do useCallback
+  }, [position, clickedPosition, categoria, texto, tempPhoto, tempAudio, markers, perfil, isSaving]);
 
+  // AJUSTADO: Correção do fluxo do e-mail falso
   const FinishModal = () => (
     <div style={overlayStyle}>
       <div style={modalStyle}>
@@ -168,11 +184,14 @@ export default function ClientApp() {
           </p>
         </div>
 
-        <p style={{fontSize: '14px', color: '#666'}}>Deseja receber o resumo deste registo no seu e-mail ({perfil.email})?</p>
+        {/* Informação clara de testes para o sábado */}
+        <p style={{fontSize: '14px', color: '#666', lineHeight: '1.4'}}>
+          O seu reporte foi gravado com sucesso na base de dados!<br/>
+          <span style={{fontSize: '12px', color: '#888'}}>Nota: Como estamos na fase piloto de testes, o envio do e-mail de resumo está desativado para este evento.</span>
+        </p>
         
-        <div style={{display: 'flex', gap: '10px'}}>
-          <button onClick={() => { alert("E-mail enviado!"); setShowFinishInfo(null); }} style={btnSuccess}>Sim, enviar</button>
-          <button onClick={() => setShowFinishInfo(null)} style={btnOutline}>Agora não</button>
+        <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
+          <button onClick={() => setShowFinishInfo(null)} style={btnSuccess}>Fechar e Voltar ao Mapa</button>
         </div>
       </div>
     </div>
@@ -201,6 +220,7 @@ export default function ClientApp() {
       {showModal && (
         <OccurrenceModal 
           tempPhoto={tempPhoto} setTempPhoto={setTempPhoto}
+          tempAudio={tempAudio} setTempAudio={setTempAudio}
           categoria={categoria} setCategoria={setCategoria}
           texto={texto} setTexto={setTexto}
           onSave={salvarOcorrencia}
@@ -218,4 +238,3 @@ const overlayStyle = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0
 const modalStyle = { backgroundColor: 'white', borderRadius: 20, padding: 25, maxWidth: 400, width: '100%', textAlign: 'center', fontFamily: 'sans-serif' };
 const infoBox = { backgroundColor: '#F0F8FF', padding: 15, borderRadius: 12, margin: '20px 0', textAlign: 'left', border: '1px solid #00A8FF' };
 const btnSuccess = { flex: 1, backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: '12px', borderRadius: 10, fontWeight: 'bold', cursor: 'pointer' };
-const btnOutline = { flex: 1, backgroundColor: 'transparent', color: '#00A8FF', border: '1px solid #00A8FF', padding: '12px', borderRadius: 10, fontWeight: 'bold', cursor: 'pointer' };

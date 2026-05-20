@@ -6,10 +6,22 @@ import { db } from '../../firebase';
 import { ref, onValue } from 'firebase/database';
 import { useSearchParams } from 'react-router-dom';
 
-const redIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
-const greenIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
-const orangeIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-orange.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [25, 41], iconAnchor: [12, 41] });
-const violetIcon = new L.Icon({ iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-violet.png', shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png', iconSize: [35, 51], iconAnchor: [17, 51] });
+// 1. IMPORTA A IMAGEM DIRETAMENTE DA PASTA ASSETS
+// Ajusta os "../" dependendo de quantos níveis a tua pasta "pages" está longe da "assets"
+import logoPinImg from '../../assets/logo-pin.png'; 
+
+// 2. CONFIGURAÇÃO DO ÍCONE USANDO A IMAGEM IMPORTADA
+const createCustomIcon = (statusClass) => {
+  return new L.Icon({
+    iconUrl: logoPinImg, // Agora o Vite processa a imagem corretamente!
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [35, 45],       
+    iconAnchor: [17, 45],     
+    popupAnchor: [0, -40],
+    shadowSize: [41, 41],
+    className: `custom-pin-${statusClass}`
+  });
+};
 
 // --- Componentes Internos para o Mapa ---
 function HeatmapLayer({ data }) {
@@ -58,7 +70,7 @@ export default function AdminMap() {
   const [cities, setCities] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
-  const [viewMode, setViewMode] = useState('both'); // 'pins', 'heat', 'both'
+  const [viewMode, setViewMode] = useState('both');
 
   const targetId = searchParams.get('id');
   const targetLat = parseFloat(searchParams.get('lat'));
@@ -76,7 +88,6 @@ export default function AdminMap() {
         }));
         setData(list);
 
-        // Extrai países únicos (apenas das ocorrências que têm a propriedade 'pais')
         const uniqueCountries = [...new Set(list.map(item => item.pais).filter(Boolean))].sort();
         setCountries(uniqueCountries);
       } else {
@@ -86,13 +97,11 @@ export default function AdminMap() {
     });
   }, []);
 
-  // Lógica de Filtro
   useEffect(() => {
     let filtered = data;
     
     if (selectedCountry) {
       filtered = filtered.filter(item => item.pais === selectedCountry);
-      // Atualiza cidades disponíveis
       const uniqueCities = [...new Set(filtered.map(item => item.cidade).filter(Boolean))].sort();
       setCities(uniqueCities);
     } else {
@@ -107,7 +116,6 @@ export default function AdminMap() {
     setFilteredData(filtered);
   }, [data, selectedCountry, selectedCity]);
 
-  // Popups para targetId
   useEffect(() => {
     if (!loading && targetId && markerRefs.current[targetId]) {
       setTimeout(() => {
@@ -116,11 +124,12 @@ export default function AdminMap() {
     }
   }, [loading, targetId, filteredData]);
 
+  // 2. ATRIBUIÇÃO DOS ÍCONES BASEADO NO ESTADO DA OCORRÊNCIA
   const getIcon = (status, isTarget) => {
-    if (isTarget) return violetIcon;
-    if (status === 'resolvido') return greenIcon;
-    if (status === 'analise') return orangeIcon;
-    return redIcon;
+    if (isTarget) return createCustomIcon('target'); // Violeta/Destaque para busca
+    if (status === 'resolvido') return createCustomIcon('verde');
+    if (status === 'analise') return createCustomIcon('amarelo');
+    return createCustomIcon('vermelho'); // 'pendente'
   };
 
   if (loading) return <div>Carregando mapa...</div>;
@@ -132,6 +141,26 @@ export default function AdminMap() {
   return (
     <div style={{ position: 'relative', height: 'calc(100vh - 120px)', width: '100%', borderRadius: '15px', overflow: 'hidden', boxShadow: '0 4px 10px rgba(0,0,0,0.05)' }}>
       
+      {/* 3. INJEÇÃO DOS ESTILOS CSS PARA RECOLORIR O LOGO AZUL ORIGINAL NATIVAMENTE */}
+      <style>{`
+        /* Vermelho (Pendente) */
+        .custom-pin-vermelho {
+          filter: hue-rotate(180deg) saturate(8) brightness(0.8) contrast(1.5);
+        }
+        /* Amarelo (Em Análise pela autarquia) */
+        .custom-pin-amarelo {
+          filter: hue-rotate(200deg) saturate(4) brightness(1.2);
+        }
+        /* Verde (Resolvido) */
+        .custom-pin-verde {
+          filter: hue-rotate(260deg) saturate(2.5) brightness(0.9);
+        }
+        /* Violeta (Alvo selecionado na busca) */
+        .custom-pin-target {
+          filter: hue-rotate(70deg) saturate(3) brightness(1);
+        }
+      `}</style>
+
       {/* Overlay de Filtros */}
       <div style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, backgroundColor: 'white', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 16px rgba(0,0,0,0.1)', minWidth: '220px', fontFamily: 'sans-serif' }}>
         <h3 style={{ margin: '0 0 15px 0', fontSize: '15px', color: '#010615', borderBottom: '1px solid #E2E8F0', paddingBottom: '10px' }}>
@@ -162,23 +191,11 @@ export default function AdminMap() {
              <option value="pins">Apenas Pins</option>
           </select>
         </div>
-        
-        {filteredData.length === 0 && !loading && (
-          <div style={{ marginTop: '15px', padding: '8px', backgroundColor: '#FEF2F2', borderRadius: '5px', fontSize: '12px', color: '#EF4444', fontWeight: 'bold', textAlign: 'center' }}>
-            Nenhuma ocorrência disponível.
-          </div>
-        )}
       </div>
 
-      <MapContainer 
-        center={defaultCenter} 
-        zoom={targetId ? 18 : 16} 
-        style={{ height: '100%', width: '100%' }}
-      >
+      <MapContainer center={defaultCenter} zoom={targetId ? 18 : 16} style={{ height: '100%', width: '100%' }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        
         <MapEffect data={filteredData} selectedCity={selectedCity} loading={loading} />
-        
         {(viewMode === 'heat' || viewMode === 'both') && <HeatmapLayer data={filteredData} />}
 
         {(viewMode === 'pins' || viewMode === 'both') && filteredData.map((m) => (
@@ -200,6 +217,13 @@ export default function AdminMap() {
                 <h4 style={{ margin: '0 0 5px 0', color: '#334155', fontSize: '16px' }}>{m.categoria}</h4>
                 <p style={{ margin: '0 0 10px 0', fontSize: '13px', color: '#64748B' }}>{m.detalhes}</p>
                 
+                {m.audio && (
+                  <div style={{ marginBottom: '12px', padding: '6px', backgroundColor: '#F0F8FF', borderRadius: '8px', border: '1px solid #00A8FF' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#00A8FF', display: 'block', marginBottom: '4px' }}>🎙️ Relato de Voz:</span>
+                    <audio src={m.audio} controls style={{ width: '100%', height: '30px' }} />
+                  </div>
+                )}
+
                 <div style={{ fontSize: '12px', color: '#94A3B8' }}>
                   <span><strong style={{color: '#64748B'}}>Status:</strong> {m.status.toUpperCase()}</span><br/>
                   <span><strong style={{color: '#64748B'}}>Autor:</strong> {m.autor}</span><br/>
