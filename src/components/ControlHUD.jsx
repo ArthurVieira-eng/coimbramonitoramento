@@ -17,7 +17,7 @@ const ControlHUD = ({ isTracking, onStart, onStop, onOpenModal, onReset, onLogou
           {/* BOTÃO DE OCORRÊNCIA (CÂMERA) - DESTACADO */}
           <button onClick={onOpenModal} style={cameraBtn}>
             <Camera size={28} />
-            <span style={labelStyle}>Registrar Ocorrência</span>
+            <span style={labelStyle}>Registar Ocorrência</span>
           </button>
 
           {/* BOTÃO DE PAUSAR/PARAR */}
