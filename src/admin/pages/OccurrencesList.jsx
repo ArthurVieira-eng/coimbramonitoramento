@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../firebase';
 import { ref, onValue, update, remove } from 'firebase/database';
-import { Trash2, Image as ImageIcon, MapPin, X, Mic } from 'lucide-react';
+import { Trash2, Image as ImageIcon, MapPin, X, Mic, ChevronDown, ChevronUp, User, ClipboardList } from 'lucide-react';
 
 // Função de Haversine para calcular distância em metros
 function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
@@ -20,6 +20,7 @@ export default function OccurrencesList() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [expandedRows, setExpandedRows] = useState({}); // Estado para controlar linhas expandidas
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -85,6 +86,21 @@ export default function OccurrencesList() {
     }
   };
 
+  const toggleExpandRow = (id) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Função auxiliar para verificar se a ocorrência tem dados extras de atualizações futuras
+  const hasExtraData = (item) => {
+    return Boolean(
+      item.perfilUtilizador || 
+      item.inqueritoPosRegisto || 
+      item.email || 
+      item.tipoDeficiencia || 
+      item.usuarioPCD
+    );
+  };
+
   if (loading) return <div>Carregando ocorrências...</div>;
 
   return (
@@ -95,11 +111,12 @@ export default function OccurrencesList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #F1F5F9', color: '#64748B' }}>
+              <th style={{ ...thStyle, width: '40px' }}></th> {/* Coluna para a Seta */}
               <th style={thStyle}>Foto</th>
               <th style={thStyle}>Data</th>
               <th style={thStyle}>Tipo</th>
               <th style={thStyle}>Autor</th>
-              <th style={thStyle}>Relato de Voz</th> {/* ALTERADO: Cabeçalho do áudio */}
+              <th style={thStyle}>Relato de Voz</th>
               <th style={thStyle}>Impacto</th>
               <th style={thStyle}>Localização</th>
               <th style={thStyle}>Status</th>
@@ -107,92 +124,170 @@ export default function OccurrencesList() {
             </tr>
           </thead>
           <tbody>
-            {data.map(item => (
-              <tr key={item.id} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                <td style={tdStyle}>
-                  {item.foto ? (
-                    <img 
-                      src={item.foto} 
-                      alt="Ocorrencia" 
-                      style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover', cursor: 'pointer' }} 
-                      onClick={() => setSelectedImage(item.foto)}
-                      title="Clique para ampliar"
-                    />
-                  ) : (
-                    <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#CBD5E1' }}>
-                      <ImageIcon size={20} />
-                    </div>
-                  )}
-                </td>
-                <td style={tdStyle}>{item.horario || '-'}</td>
-                <td style={{...tdStyle, fontWeight: 'bold', color: '#334155'}}>{item.categoria}</td>
-                <td style={tdStyle}>{item.autor}</td>
-                
-                {/* ALTERADO: Coluna com o Player de Áudio NTL */}
-                <td style={tdStyle}>
-                  {item.audio ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px' }}>
-                      <Mic size={16} style={{ color: '#00A8FF', flexShrink: 0 }} />
-                      <audio 
-                        src={item.audio} 
-                        controls 
-                        style={{ height: '24px', width: '100%', maxWidth: '150px' }} 
-                      />
-                    </div>
-                  ) : (
-                    <span style={{ color: '#CBD5E1', fontSize: '12px', fontStyle: 'italic' }}>Sem áudio</span>
-                  )}
-                </td>
+            {data.map(item => {
+              const isExpanded = expandedRows[item.id];
+              const showArrow = hasExtraData(item);
 
-                <td style={tdStyle}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                    <span style={{ 
-                      display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', width: 'fit-content',
-                      backgroundColor: item.impacto === 'Alto' ? '#FEE2E2' : item.impacto === 'Médio' ? '#FEF3C7' : '#DCFCE7',
-                      color: item.impacto === 'Alto' ? '#991B1B' : item.impacto === 'Médio' ? '#92400E' : '#166534'
-                    }}>
-                      {item.impacto}
-                    </span>
-                    {item.relacionadas > 0 && (
-                      <span style={{ fontSize: '11px', color: '#64748B' }}>+{item.relacionadas} similares</span>
-                    )}
-                  </div>
-                </td>
-                <td style={tdStyle}>
-                  <button 
-                    onClick={() => handleViewMap(item)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#F1F5F9', color: '#00A8FF', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-                  >
-                    <MapPin size={14} /> Ver no Mapa
-                  </button>
-                </td>
-                <td style={tdStyle}>
-                  <select 
-                    value={item.status} 
-                    onChange={e => handleStatusChange(item.id, e.target.value)}
-                    style={{
-                      padding: '6px 10px', borderRadius: '20px', border: '1px solid #E2E8F0', outline: 'none', cursor: 'pointer',
-                      backgroundColor: item.status === 'resolvido' ? '#DCFCE7' : item.status === 'pendente' ? '#FEE2E2' : '#FEF3C7',
-                      color: item.status === 'resolvido' ? '#166534' : item.status === 'pendente' ? '#991B1B' : '#92400E',
-                      fontWeight: 'bold', fontSize: '12px'
-                    }}
-                  >
-                    <option value="pendente">Pendente</option>
-                    <option value="analise">Em Análise</option>
-                    <option value="resolvido">Resolvido</option>
-                  </select>
-                </td>
-                <td style={tdStyle}>
-                  <button 
-                    onClick={() => handleDelete(item.id)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF4444', padding: '5px' }}
-                    title="Excluir"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+              return (
+                <React.Fragment key={item.id}>
+                  <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #F1F5F9' }}>
+                    {/* Botão com Seta se houver dados extras */}
+                    <td style={tdStyle}>
+                      {showArrow ? (
+                        <button
+                          onClick={() => toggleExpandRow(item.id)}
+                          style={{
+                            background: '#F1F5F9',
+                            border: '1px solid #CBD5E1',
+                            borderRadius: '50%',
+                            width: '28px',
+                            height: '28px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            color: '#00A8FF'
+                          }}
+                          title={isExpanded ? "Ocultar detalhes extras" : "Mostrar detalhes extras"}
+                        >
+                          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                        </button>
+                      ) : null}
+                    </td>
+
+                    <td style={tdStyle}>
+                      {item.foto ? (
+                        <img 
+                          src={item.foto} 
+                          alt="Ocorrencia" 
+                          style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover', cursor: 'pointer' }} 
+                          onClick={() => setSelectedImage(item.foto)}
+                          title="Clique para ampliar"
+                        />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', borderRadius: '8px', backgroundColor: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#CBD5E1' }}>
+                          <ImageIcon size={20} />
+                        </div>
+                      )}
+                    </td>
+                    <td style={tdStyle}>{item.horario || '-'}</td>
+                    <td style={{...tdStyle, fontWeight: 'bold', color: '#334155'}}>{item.categoria}</td>
+                    <td style={tdStyle}>{item.autor}</td>
+                    
+                    <td style={tdStyle}>
+                      {item.audio ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px' }}>
+                          <Mic size={16} style={{ color: '#00A8FF', flexShrink: 0 }} />
+                          <audio 
+                            src={item.audio} 
+                            controls 
+                            style={{ height: '24px', width: '100%', maxWidth: '150px' }} 
+                          />
+                        </div>
+                      ) : (
+                        <span style={{ color: '#CBD5E1', fontSize: '12px', fontStyle: 'italic' }}>Sem áudio</span>
+                      )}
+                    </td>
+
+                    <td style={tdStyle}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        <span style={{ 
+                          display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold', width: 'fit-content',
+                          backgroundColor: item.impacto === 'Alto' ? '#FEE2E2' : item.impacto === 'Médio' ? '#FEF3C7' : '#DCFCE7',
+                          color: item.impacto === 'Alto' ? '#991B1B' : item.impacto === 'Médio' ? '#92400E' : '#166534'
+                        }}>
+                          {item.impacto}
+                        </span>
+                        {item.relacionadas > 0 && (
+                          <span style={{ fontSize: '11px', color: '#64748B' }}>+{item.relacionadas} similares</span>
+                        )}
+                      </div>
+                    </td>
+                    <td style={tdStyle}>
+                      <button 
+                        onClick={() => handleViewMap(item)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#F1F5F9', color: '#00A8FF', border: '1px solid #E2E8F0', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+                      >
+                        <MapPin size={14} /> Ver no Mapa
+                      </button>
+                    </td>
+                    <td style={tdStyle}>
+                      <select 
+                        value={item.status} 
+                        onChange={e => handleStatusChange(item.id, e.target.value)}
+                        style={{
+                          padding: '6px 10px', borderRadius: '20px', border: '1px solid #E2E8F0', outline: 'none', cursor: 'pointer',
+                          backgroundColor: item.status === 'resolvido' ? '#DCFCE7' : item.status === 'pendente' ? '#FEE2E2' : '#FEF3C7',
+                          color: item.status === 'resolvido' ? '#166534' : item.status === 'pendente' ? '#991B1B' : '#92400E',
+                          fontWeight: 'bold', fontSize: '12px'
+                        }}
+                      >
+                        <option value="pendente">Pendente</option>
+                        <option value="analise">Em Análise</option>
+                        <option value="resolvido">Resolvido</option>
+                      </select>
+                    </td>
+                    <td style={tdStyle}>
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FF4444', padding: '5px' }}
+                        title="Excluir"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+
+                  {/* Painel Expansível de Detalhes Extras */}
+                  {isExpanded && showArrow && (
+                    <tr style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: '#F8FAFC' }}>
+                      <td colSpan={10} style={{ padding: '15px 20px' }}>
+                        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                          
+                          {/* Cartão do Perfil do Utilizador */}
+                          <div style={{ flex: '1 1 300px', backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px 15px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00A8FF', fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
+                              <User size={16} /> Perfil do Utilizador
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                              <span><strong>Nome:</strong> {item.perfilUtilizador?.nome || item.autor || '-'}</span>
+                              <span><strong>Email:</strong> {item.perfilUtilizador?.email || item.email || '-'}</span>
+                              <span>
+                                <strong>É PCD?</strong> {
+                                  item.perfilUtilizador?.categoria
+                                    ? item.perfilUtilizador.categoria
+                                    : (item.usuarioPCD ? 'Sim' : 'Não')
+                                }
+                              </span>
+                              {(item.perfilUtilizador?.representado || item.representado) && (
+                                <span><strong>Representando:</strong> {item.perfilUtilizador?.representado || item.representado}</span>
+                              )}
+                              {(item.perfilUtilizador?.tipologia || item.tipoDeficiencia) && (
+                                <span><strong>Deficiência / Tipologia:</strong> {item.perfilUtilizador?.tipologia || item.tipoDeficiencia}</span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Cartão do Inquérito Pós-Registo */}
+                          {item.inqueritoPosRegisto && (
+                            <div style={{ flex: '1 1 300px', backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px 15px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
+                                <ClipboardList size={16} /> Respostas do Inquérito
+                              </div>
+                              <div style={{ fontSize: '12px', color: '#475569', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                <span><strong>Frequência de Passagem:</strong> {item.inqueritoPosRegisto.frequenciaPassagem || '-'}</span>
+                                <span><strong>Destino do Percurso:</strong> {item.inqueritoPosRegisto.destinoObstaculo || '-'}</span>
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
         {data.length === 0 && <p style={{ textAlign: 'center', color: '#94A3B8', marginTop: '20px' }}>Nenhuma ocorrência registrada.</p>}

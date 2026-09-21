@@ -33,20 +33,32 @@ const compressImage = (base64Str, maxWidth = 600, maxHeight = 600) => {
 
 export default function ClientApp() {
   const [isRegistered, setIsRegistered] = useState(false);
-  const [perfil, setPerfil] = useState({ nome: '', email: '' });
+  const [perfil, setPerfil] = useState({ 
+    nome: '', 
+    email: '', 
+    categoria: '', 
+    nomeRepresentado: '', 
+    tipologias: [] 
+  });
+  
   const [isTracking, setIsTracking] = useState(false);
   const [markers, setMarkers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  const [showFinishInfo, setShowFinishInfo] = useState(null);
+  // Estado para guardar a ocorrência guardada temporariamente para responder ao inquérito pós-registo (Topico 7)
+  const [pendingOccurrence, setPendingOccurrence] = useState(null);
+  const [frequencia, setFrequencia] = useState('');
+  const [frequenciaOutro, setFrequenciaOutro] = useState('');
+  const [destino, setDestino] = useState('');
+  const [destinoOutro, setDestinoOutro] = useState('');
 
   const [tempPhoto, setTempPhoto] = useState(null);
   const [categoria, setCategoria] = useState("");
   const [texto, setTexto] = useState(""); 
   const [tempAudio, setTempAudio] = useState(null);
 
-  const { position, path, setPath, fallbackActive } = useGPS(isRegistered, isTracking);
+  const { position, path, setPath } = useGPS(isRegistered, isTracking);
   const [clickedPosition, setClickedPosition] = useState(null);
 
   useEffect(() => {
@@ -59,12 +71,18 @@ export default function ClientApp() {
   }, [setPath]);
 
   const handleLogin = () => {
-    if (perfil.nome && perfil.email) {
-      localStorage.setItem('auditor_perfil', JSON.stringify(perfil));
-      setIsRegistered(true);
-    } else {
-      alert("Por favor, preencha todos os campos.");
+    // Tópico 3: Email e Nome obrigatórios
+    if (!perfil.nome || !perfil.email || !perfil.categoria) {
+      alert("Por favor, preencha o Nome, Email e selecione a sua categoria.");
+      return;
     }
+    if (perfil.categoria === 'tutor' && !perfil.nomeRepresentado) {
+      alert("Por favor, indique o nome da pessoa que representa.");
+      return;
+    }
+
+    localStorage.setItem('auditor_perfil', JSON.stringify(perfil));
+    setIsRegistered(true);
   };
 
   const handleReset = () => {
@@ -83,11 +101,10 @@ export default function ClientApp() {
     if(window.confirm("Deseja realmente sair? Você precisará fazer login novamente.")) {
       localStorage.removeItem('auditor_perfil');
       setIsRegistered(false);
-      setPerfil({ nome: '', email: '' });
+      setPerfil({ nome: '', email: '', categoria: '', nomeRepresentado: '', tipologias: [] });
     }
   };
 
-  // AJUSTADO: Agora a função recebe as coordenadas exatas vindas do Modal
   const salvarOcorrencia = useCallback(async (coordenadasDoModal) => {
     if (isSaving) return;
 
@@ -132,67 +149,142 @@ export default function ClientApp() {
         foto: fotoFinal,
         audio: tempAudio,
         autor: perfil.nome || "Utilizador Anónimo",
-        emailAutor: perfil.email,
+        email: perfil.email,
+        perfilUtilizador: perfil, // Guarda informações do tipo de perfil e deficiências
         timestamp: new Date().getTime(),
         horario: new Date().toLocaleString('pt-PT'),
       };
 
-      // Gravação direta em tempo real no Firebase
+      // Gravação temporária para concluir as perguntas do Tópico 7
+      setPendingOccurrence(nova);
+      setShowModal(false);
+
+    } catch (error) {
+      console.error(error);
+      alert("❌ Erro ao processar o registo.");
+    } finally {
+      setIsSaving(false);
+    }
+  }, [position, clickedPosition, categoria, texto, tempPhoto, tempAudio, perfil, isSaving]);
+
+  // Grava definitivamente no Firebase após responder às perguntas do Tópico 7
+  const submeterInqueritoEGuardar = async () => {
+    if (!pendingOccurrence) return;
+
+    const frequenciaFinal = frequencia === 'Outro' ? frequenciaOutro : frequencia;
+    const destinoFinal = destino === 'Outro' ? destinoOutro : destino;
+
+    const ocorrenciaCompleta = {
+      ...pendingOccurrence,
+      inqueritoPosRegisto: {
+        frequenciaPassagem: frequenciaFinal || 'Prefiro não responder',
+        destinoObstaculo: destinoFinal || 'Prefiro não responder'
+      }
+    };
+
+    try {
       const ocorrenciasRef = ref(db, 'ocorrencias');
-      await set(push(ocorrenciasRef), nova);
-      
-      const ocorrenciasNaMesmaRua = markers.filter(m => m.endereco === endereco).length + 1;
+      await set(push(ocorrenciasRef), ocorrenciaCompleta);
 
-      setShowFinishInfo({
-        endereco: endereco,
-        contagem: ocorrenciasNaMesmaRua
-      });
-
-      const lista = [...markers, nova];
+      const lista = [...markers, ocorrenciaCompleta];
       setMarkers(lista);
       localStorage.setItem('auditor_markers', JSON.stringify(lista));
-      
-      // ALTERADO: Estados limpos com sucesso, incluindo o áudio!
-      setShowModal(false); 
+
+      // Limpar formulário
+      setPendingOccurrence(null);
+      setFrequencia('');
+      setFrequenciaOutro('');
+      setDestino('');
+      setDestinoOutro('');
       setTempPhoto(null); 
       setTempAudio(null); 
       setCategoria(""); 
       setTexto(""); 
       setClickedPosition(null);
 
-    } catch (error) {
-      console.error(error);
-      alert("❌ Erro ao guardar o registo.");
-    } finally {
-      setIsSaving(false);
+      alert("Ocorrência e inquérito guardados com sucesso!");
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao guardar dados.");
     }
-    // CORRIGIDO: Adicionado tempAudio à lista de dependências do useCallback
-  }, [position, clickedPosition, categoria, texto, tempPhoto, tempAudio, markers, perfil, isSaving]);
+  };
 
-  // AJUSTADO: Correção do fluxo do e-mail falso
-  const FinishModal = () => (
+  // Modal com Perguntas Pós-Registo (Tópicos 7.1 e 7.2)
+  const SurveyModal = () => (
     <div style={overlayStyle}>
-      <div style={modalStyle}>
-        <h2 style={{color: '#00A8FF', marginTop: 0}}>✓ Registo Concluído!</h2>
-        <p>Obrigado, <strong>{perfil.nome}</strong>. A sua contribuição ajuda a tornar a cidade mais acessível.</p>
+      <div style={{ ...modalStyle, textAlign: 'left', maxHeight: '85vh', overflowY: 'auto' }}>
+        <h3 style={{ color: '#00A8FF', marginTop: 0 }}>✓ Registo efetuado! Ajude-nos com 2 perguntas simples:</h3>
         
-        <div style={infoBox}>
-          <p style={{margin: '5px 0'}}>📍 <strong>Local:</strong> {showFinishInfo.endereco}</p>
-          <p style={{margin: '5px 0'}}>👥 <strong>Impacto:</strong> {showFinishInfo.contagem === 1 
-            ? "É o primeiro a registar este ponto!" 
-            : `${showFinishInfo.contagem} pessoas já reportaram problemas nesta zona.`}
-          </p>
+        {/* 7.1 Frequência */}
+        <div style={{ marginBottom: 15 }}>
+          <label style={labelStyle}>7.1 Quando esta ocorrência for resolvida, com que frequência tenciono passar neste local?</label>
+          {[
+            'Sempre que visitar a cidade',
+            'Todos os dias',
+            'Quase todos os dias',
+            'De vez em quando',
+            'Outro',
+            'Prefiro não responder'
+          ].map((op) => (
+            <label key={op} style={{ display: 'block', fontSize: 13, margin: '4px 0' }}>
+              <input 
+                type="radio" 
+                name="frequencia" 
+                value={op} 
+                checked={frequencia === op} 
+                onChange={(e) => setFrequencia(e.target.value)} 
+              /> {op}
+            </label>
+          ))}
+          {frequencia === 'Outro' && (
+            <input 
+              type="text" 
+              placeholder="Especifique..." 
+              value={frequenciaOutro} 
+              onChange={(e) => setFrequenciaOutro(e.target.value)}
+              style={inputTextStyle} 
+            />
+          )}
         </div>
 
-        {/* Informação clara de testes para o sábado */}
-        <p style={{fontSize: '14px', color: '#666', lineHeight: '1.4'}}>
-          O seu reporte foi gravado com sucesso na base de dados!<br/>
-          <span style={{fontSize: '12px', color: '#888'}}>Nota: Como estamos na fase piloto de testes, o envio do e-mail de resumo está desativado para este evento.</span>
-        </p>
-        
-        <div style={{display: 'flex', gap: '10px', marginTop: '15px'}}>
-          <button onClick={() => setShowFinishInfo(null)} style={btnSuccess}>Fechar e Voltar ao Mapa</button>
+        {/* 7.2 Destino */}
+        <div style={{ marginBottom: 15 }}>
+          <label style={labelStyle}>7.2 Este obstáculo encontra-se:</label>
+          {[
+            'a caminho de casa',
+            'a caminho do trabalho',
+            'a caminho de uma área de lazer',
+            'a caminho de um espaço cultural',
+            'a caminho de uma loja',
+            'a caminho de um serviço da cidade',
+            'enquanto faço turismo',
+            'Outro',
+            'Prefiro não responder'
+          ].map((op) => (
+            <label key={op} style={{ display: 'block', fontSize: 13, margin: '4px 0' }}>
+              <input 
+                type="radio" 
+                name="destino" 
+                value={op} 
+                checked={destino === op} 
+                onChange={(e) => setDestino(e.target.value)} 
+              /> {op}
+            </label>
+          ))}
+          {destino === 'Outro' && (
+            <input 
+              type="text" 
+              placeholder="Especifique..." 
+              value={destinoOutro} 
+              onChange={(e) => setDestinoOutro(e.target.value)}
+              style={inputTextStyle} 
+            />
+          )}
         </div>
+
+        <button onClick={submeterInqueritoEGuardar} style={btnSuccess}>
+          Concluir e Guardar
+        </button>
       </div>
     </div>
   );
@@ -203,6 +295,7 @@ export default function ClientApp() {
 
   return (
     <div style={{ height: '100vh', width: '100vw', position: 'relative', overflow: 'hidden' }}>
+      {/* Tópico 5: Apenas os markers do próprio utilizador são passados para a app */}
       <MapDisplay 
         position={position} path={path} markers={markers} 
         clickedPosition={clickedPosition} onMapClick={setClickedPosition}
@@ -229,12 +322,13 @@ export default function ClientApp() {
         />
       )}
 
-      {showFinishInfo && <FinishModal />}
+      {pendingOccurrence && <SurveyModal />}
     </div>
   );
 }
 
 const overlayStyle = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 3000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 };
-const modalStyle = { backgroundColor: 'white', borderRadius: 20, padding: 25, maxWidth: 400, width: '100%', textAlign: 'center', fontFamily: 'sans-serif' };
-const infoBox = { backgroundColor: '#F0F8FF', padding: 15, borderRadius: 12, margin: '20px 0', textAlign: 'left', border: '1px solid #00A8FF' };
-const btnSuccess = { flex: 1, backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: '12px', borderRadius: 10, fontWeight: 'bold', cursor: 'pointer' };
+const modalStyle = { backgroundColor: 'white', borderRadius: 20, padding: 25, maxWidth: 420, width: '100%', fontFamily: 'sans-serif' };
+const labelStyle = { display: 'block', fontWeight: 'bold', fontSize: 14, color: '#333', marginBottom: 6 };
+const inputTextStyle = { width: '100%', padding: 8, borderRadius: 6, border: '1px solid #ccc', marginTop: 5, boxSizing: 'border-box' };
+const btnSuccess = { width: '100%', backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: '12px', borderRadius: 10, fontWeight: 'bold', cursor: 'pointer', marginTop: 10 };
