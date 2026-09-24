@@ -1,14 +1,29 @@
 import React, { useState } from 'react';
+import logoImg from '../assets/logo.png'; // 1. Importação da imagem da pasta assets
 
 export default function LoginScreen({ perfil, setPerfil, onLogin }) {
   const [outraDeficiencia, setOutraDeficiencia] = useState('');
 
+  // Função para sintetizar voz ao interagir
+  const falar = (texto) => {
+    if ('speechSynthesis' in window && perfil.tipologias?.includes('Deficiência visual')) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(texto);
+      utterance.lang = 'pt-PT';
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
   const handleTipologiaChange = (tipo) => {
     let atualizadas = perfil.tipologias || [];
-    if (atualizadas.includes(tipo)) {
+    let estaMarcado = atualizadas.includes(tipo);
+
+    if (estaMarcado) {
       atualizadas = atualizadas.filter((t) => t !== tipo);
+      falar(`${tipo} desmarcado`);
     } else {
       atualizadas = [...atualizadas, tipo];
+      falar(`${tipo} selecionado`);
     }
     setPerfil({ ...perfil, tipologias: atualizadas });
   };
@@ -16,7 +31,16 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
-        <h2 style={{ color: '#00A8FF', marginBottom: 5 }}>AccessCity</h2>
+        
+        {/* 2. Substituição do título h2 pela Imagem do Logótipo */}
+        <div style={{ textAlign: 'center', marginBottom: 15 }}>
+          <img 
+            src={logoImg} 
+            alt="AccessCity Logo" 
+            style={{ maxHeight: 60, maxWidth: '100%', objectFit: 'contain' }} 
+          />
+        </div>
+
         <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>Registo de Acessibilidade</p>
 
         {/* Tópico 3: Nome & Email */}
@@ -26,6 +50,7 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
             type="text" 
             value={perfil.nome} 
             onChange={(e) => setPerfil({ ...perfil, nome: e.target.value })}
+            onFocus={() => falar("A introduzir Nome Completo")}
             placeholder="O seu nome"
             style={inputStyle}
           />
@@ -37,17 +62,21 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
             type="email" 
             value={perfil.email} 
             onChange={(e) => setPerfil({ ...perfil, email: e.target.value })}
+            onFocus={() => falar("A introduzir E-mail")}
             placeholder="seu.email@exemplo.com"
             style={inputStyle}
           />
         </div>
 
-        {/* Tópico 6.1: Seleção de Perfil */}
+        {/* Categoria */}
         <div style={{ textAlign: 'left', marginBottom: 15 }}>
           <label style={labelStyle}>Categoria *</label>
           <select 
             value={perfil.categoria} 
-            onChange={(e) => setPerfil({ ...perfil, categoria: e.target.value })}
+            onChange={(e) => {
+              setPerfil({ ...perfil, categoria: e.target.value });
+              falar(`Categoria selecionada: ${e.target.options[e.target.selectedIndex].text}`);
+            }}
             style={inputStyle}
           >
             <option value="">Selecione a sua categoria...</option>
@@ -65,13 +94,14 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
               type="text" 
               value={perfil.nomeRepresentado || ''} 
               onChange={(e) => setPerfil({ ...perfil, nomeRepresentado: e.target.value })}
+              onFocus={() => falar("A introduzir Nome da pessoa representada")}
               placeholder="Nome do representado"
               style={inputStyle}
             />
           </div>
         )}
 
-        {/* Tópico 6.2: Tipologia de Deficiência (Se 'pcd') */}
+        {/* Tipologia de Deficiência (Se 'pcd') */}
         {perfil.categoria === 'pcd' && (
           <div style={{ textAlign: 'left', marginBottom: 15, backgroundColor: '#F0F8FF', padding: 12, borderRadius: 8 }}>
             <label style={{ ...labelStyle, color: '#00A8FF' }}>Tipologia de deficiência (pode marcar várias):</label>
@@ -81,7 +111,7 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
               'Deficiência visual',
               'Deficiência intelectual'
             ].map((tipo) => (
-              <label key={tipo} style={{ display: 'block', fontSize: 13, margin: '5px 0' }}>
+              <label key={tipo} style={{ display: 'block', fontSize: 13, margin: '5px 0', cursor: 'pointer' }}>
                 <input 
                   type="checkbox" 
                   checked={(perfil.tipologias || []).includes(tipo)}
@@ -95,6 +125,7 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
               <input 
                 type="text" 
                 value={outraDeficiencia}
+                onFocus={() => falar("A introduzir Outra tipologia de deficiência")}
                 onChange={(e) => {
                   setOutraDeficiencia(e.target.value);
                   let limpas = (perfil.tipologias || []).filter(t => !t.startsWith('Outra: '));
@@ -108,7 +139,13 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
           </div>
         )}
 
-        <button onClick={onLogin} style={btnStyle}>
+        <button 
+          onClick={() => {
+            falar("A entrar na aplicação");
+            onLogin();
+          }} 
+          style={btnStyle}
+        >
           Entrar na Aplicação
         </button>
       </div>

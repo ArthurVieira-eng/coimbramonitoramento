@@ -4,6 +4,9 @@ import { db } from '../../firebase';
 import { ref, onValue, update, remove } from 'firebase/database';
 import { Trash2, Image as ImageIcon, MapPin, X, Mic, ChevronDown, ChevronUp, User, ClipboardList } from 'lucide-react';
 
+const thStyle = { padding: '15px 10px' };
+const tdStyle = { padding: '15px 10px', verticalAlign: 'middle', color: '#475569' };
+
 // Função de Haversine para calcular distância em metros
 function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
   const R = 6371e3; // Raio da Terra em metros
@@ -111,7 +114,7 @@ export default function OccurrencesList() {
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
           <thead>
             <tr style={{ borderBottom: '2px solid #F1F5F9', color: '#64748B' }}>
-              <th style={{ ...thStyle, width: '40px' }}></th> {/* Coluna para a Seta */}
+              <th style={{ ...thStyle, width: '40px' }}></th>
               <th style={thStyle}>Foto</th>
               <th style={thStyle}>Data</th>
               <th style={thStyle}>Tipo</th>
@@ -131,7 +134,6 @@ export default function OccurrencesList() {
               return (
                 <React.Fragment key={item.id}>
                   <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid #F1F5F9' }}>
-                    {/* Botão com Seta se houver dados extras */}
                     <td style={tdStyle}>
                       {showArrow ? (
                         <button
@@ -154,7 +156,6 @@ export default function OccurrencesList() {
                         </button>
                       ) : null}
                     </td>
-
                     <td style={tdStyle}>
                       {item.foto ? (
                         <img 
@@ -173,7 +174,6 @@ export default function OccurrencesList() {
                     <td style={tdStyle}>{item.horario || '-'}</td>
                     <td style={{...tdStyle, fontWeight: 'bold', color: '#334155'}}>{item.categoria}</td>
                     <td style={tdStyle}>{item.autor}</td>
-                    
                     <td style={tdStyle}>
                       {item.audio ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '160px' }}>
@@ -188,7 +188,6 @@ export default function OccurrencesList() {
                         <span style={{ color: '#CBD5E1', fontSize: '12px', fontStyle: 'italic' }}>Sem áudio</span>
                       )}
                     </td>
-
                     <td style={tdStyle}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                         <span style={{ 
@@ -238,13 +237,10 @@ export default function OccurrencesList() {
                     </td>
                   </tr>
 
-                  {/* Painel Expansível de Detalhes Extras */}
                   {isExpanded && showArrow && (
                     <tr style={{ borderBottom: '1px solid #F1F5F9', backgroundColor: '#F8FAFC' }}>
                       <td colSpan={10} style={{ padding: '15px 20px' }}>
                         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                          
-                          {/* Cartão do Perfil do Utilizador */}
                           <div style={{ flex: '1 1 300px', backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px 15px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#00A8FF', fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
                               <User size={16} /> Perfil do Utilizador
@@ -268,7 +264,6 @@ export default function OccurrencesList() {
                             </div>
                           </div>
 
-                          {/* Cartão do Inquérito Pós-Registo */}
                           {item.inqueritoPosRegisto && (
                             <div style={{ flex: '1 1 300px', backgroundColor: 'white', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px 15px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#10B981', fontWeight: 'bold', marginBottom: '8px', fontSize: '13px' }}>
@@ -280,7 +275,6 @@ export default function OccurrencesList() {
                               </div>
                             </div>
                           )}
-
                         </div>
                       </td>
                     </tr>
@@ -293,7 +287,6 @@ export default function OccurrencesList() {
         {data.length === 0 && <p style={{ textAlign: 'center', color: '#94A3B8', marginTop: '20px' }}>Nenhuma ocorrência registrada.</p>}
       </div>
 
-      {/* Modal de Imagem */}
       {selectedImage && (
         <div 
           onClick={() => setSelectedImage(null)}
@@ -318,6 +311,3 @@ export default function OccurrencesList() {
     </div>
   );
 }
-
-const thStyle = { padding: '15px 10px' };
-const tdStyle = { padding: '15px 10px', verticalAlign: 'middle', color: '#475569' };
