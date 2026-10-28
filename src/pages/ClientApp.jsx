@@ -30,6 +30,189 @@ const compressImage = (base64Str, maxWidth = 600, maxHeight = 600) => {
   });
 };
 
+// COMPONENTE DO INQUÉRITO ISOLADO FORA PARA EVITAR RE-RENDERIZAÇÃO DO TECLADO
+const SurveyModalComponent = ({
+  stepSurvey,
+  setStepSurvey,
+  frequencia,
+  setFrequencia,
+  frequenciaOutro,
+  setFrequenciaOutro,
+  destinosSelecionados,
+  setDestinosSelecionados,
+  destinoOutro,
+  setDestinoOutro,
+  submeterInqueritoEGuardar,
+  falar,
+  handleToggleDestino
+}) => (
+  <div style={overlayStyle}>
+    <div style={{ ...modalStyle, textAlign: 'left', maxHeight: '90vh', overflowY: 'auto' }}>
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
+        <h3 style={{ color: '#00A8FF', margin: 0, fontSize: 18 }}>✓ Registo efetuado!</h3>
+        <span style={{ fontSize: 12, fontWeight: 'bold', color: '#666', backgroundColor: '#EDF2F7', padding: '4px 10px', borderRadius: 12 }}>
+          Pergunta {stepSurvey} de 2
+        </span>
+      </div>
+
+      {stepSurvey === 1 && (
+        <div>
+          <p style={{ fontWeight: 'bold', fontSize: 16, color: '#1A202C', marginBottom: 15, lineHeight: '1.4' }}>
+            Quando esta ocorrência for resolvida, com que frequência tenciono passar neste local?
+          </p>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              'Sempre que visitar a cidade',
+              'Todos os dias',
+              'Quase todos os dias',
+              'De vez em quando',
+              'Outro',
+              'Prefiro não responder'
+            ].map((op) => {
+              const isSelected = frequencia === op;
+              return (
+                <button
+                  key={op}
+                  type="button"
+                  onClick={() => {
+                    setFrequencia(op);
+                    falar(`Opção selecionada: ${op}`);
+                  }}
+                  style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: isSelected ? '2px solid #00A8FF' : '1px solid #CBD5E0',
+                    backgroundColor: isSelected ? '#EBF8FF' : '#FFF',
+                    color: isSelected ? '#00A8FF' : '#2D3748',
+                    fontWeight: isSelected ? 'bold' : 'normal',
+                    fontSize: '15px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}
+                >
+                  <span>{op}</span>
+                  {isSelected && <span style={{ fontWeight: 'bold', fontSize: 16 }}>●</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {frequencia === 'Outro' && (
+            <input 
+              type="text" 
+              placeholder="Especifique a frequência..." 
+              value={frequenciaOutro} 
+              onChange={(e) => setFrequenciaOutro(e.target.value)}
+              style={inputTextStyle} 
+            />
+          )}
+
+          <button 
+            type="button"
+            disabled={!frequencia}
+            onClick={() => {
+              setStepSurvey(2);
+              falar("Pergunta seguinte: Onde se encontra o obstáculo?");
+            }} 
+            style={{ ...btnSuccess, opacity: frequencia ? 1 : 0.5, marginTop: 20 }}
+          >
+            Próxima Pergunta →
+          </button>
+        </div>
+      )}
+
+      {stepSurvey === 2 && (
+        <div>
+          <p style={{ fontWeight: 'bold', fontSize: 16, color: '#1A202C', marginBottom: 4 }}>
+            Este obstáculo encontra-se:
+          </p>
+          <span style={{ fontSize: 13, color: '#718096', display: 'block', marginBottom: 15 }}>
+            (Pode selecionar várias opções)
+          </span>
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {[
+              'a caminho de casa',
+              'a caminho do trabalho',
+              'a caminho de uma área de lazer',
+              'a caminho de um espaço cultural',
+              'a caminho de uma loja',
+              'a caminho de um serviço da cidade',
+              'enquanto faço turismo',
+              'Outro',
+              'Prefiro não responder'
+            ].map((op) => {
+              const isSelected = destinosSelecionados.includes(op);
+              return (
+                <button
+                  key={op}
+                  type="button"
+                  onClick={() => handleToggleDestino(op)}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    border: isSelected ? '2px solid #00A8FF' : '1px solid #CBD5E0',
+                    backgroundColor: isSelected ? '#EBF8FF' : '#FFF',
+                    color: isSelected ? '#00A8FF' : '#2D3748',
+                    fontWeight: isSelected ? 'bold' : 'normal',
+                    fontSize: '14px',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span>{op}</span>
+                  {isSelected && <span style={{ fontWeight: 'bold', fontSize: 16 }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {destinosSelecionados.includes('Outro') && (
+            <input 
+              type="text" 
+              placeholder="Especifique o destino..." 
+              value={destinoOutro} 
+              onChange={(e) => setDestinoOutro(e.target.value)}
+              style={inputTextStyle} 
+            />
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            <button 
+              type="button"
+              onClick={() => {
+                setStepSurvey(1);
+                falar("Voltar para a primeira pergunta");
+              }} 
+              style={{ ...btnSuccess, backgroundColor: '#EDF2F7', color: '#4A5568', width: '35%', marginTop: 0 }}
+            >
+              ← Voltar
+            </button>
+            <button 
+              type="button"
+              onClick={submeterInqueritoEGuardar} 
+              style={{ ...btnSuccess, width: '65%', marginTop: 0 }}
+            >
+              Concluir e Guardar
+            </button>
+          </div>
+        </div>
+      )}
+
+    </div>
+  </div>
+);
+
 export default function ClientApp() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [perfil, setPerfil] = useState({ 
@@ -40,7 +223,6 @@ export default function ClientApp() {
     tipologias: [] 
   });
 
-  // Estados de Acessibilidade Dinâmica
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
 
@@ -51,7 +233,6 @@ export default function ClientApp() {
   
   const [pendingOccurrence, setPendingOccurrence] = useState(null);
   
-  // ESTADOS DO INQUÉRITO REFORMULADOS
   const [stepSurvey, setStepSurvey] = useState(1);
   const [frequencia, setFrequencia] = useState('');
   const [frequenciaOutro, setFrequenciaOutro] = useState('');
@@ -66,7 +247,6 @@ export default function ClientApp() {
   const { position, path, setPath } = useGPS(isRegistered, isTracking);
   const [clickedPosition, setClickedPosition] = useState(null);
 
-  // Função global de leitura de voz por síntese (TTS)
   const falar = useCallback((texto) => {
     if ('speechSynthesis' in window && isVoiceActive) {
       window.speechSynthesis.cancel();
@@ -77,7 +257,6 @@ export default function ClientApp() {
     }
   }, [isVoiceActive]);
 
-  // Aplicar acessibilidade adaptativa conforme perfil
   const aplicarAcessibilidadePerfil = useCallback((perfilUtilizador) => {
     const deficiencia = perfilUtilizador.tipologias || [];
 
@@ -268,175 +447,6 @@ export default function ClientApp() {
     }
   };
 
-  const SurveyModal = () => (
-    <div style={overlayStyle}>
-      <div style={{ ...modalStyle, textAlign: 'left', maxHeight: '90vh', overflowY: 'auto' }}>
-        
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-          <h3 style={{ color: '#00A8FF', margin: 0, fontSize: 18 }}>✓ Registo efetuado!</h3>
-          <span style={{ fontSize: 12, fontWeight: 'bold', color: '#666', backgroundColor: '#EDF2F7', padding: '4px 10px', borderRadius: 12 }}>
-            Pergunta {stepSurvey} de 2
-          </span>
-        </div>
-
-        {stepSurvey === 1 && (
-          <div>
-            <p style={{ fontWeight: 'bold', fontSize: 16, color: '#1A202C', marginBottom: 15, lineHeight: '1.4' }}>
-              Quando esta ocorrência for resolvida, com que frequência tenciono passar neste local?
-            </p>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                'Sempre que visitar a cidade',
-                'Todos os dias',
-                'Quase todos os dias',
-                'De vez em quando',
-                'Outro',
-                'Prefiro não responder'
-              ].map((op) => {
-                const isSelected = frequencia === op;
-                return (
-                  <button
-                    key={op}
-                    type="button"
-                    onClick={() => {
-                      setFrequencia(op);
-                      falar(`Opção selecionada: ${op}`);
-                    }}
-                    style={{
-                      padding: '14px',
-                      borderRadius: '12px',
-                      border: isSelected ? '2px solid #00A8FF' : '1px solid #CBD5E0',
-                      backgroundColor: isSelected ? '#EBF8FF' : '#FFF',
-                      color: isSelected ? '#00A8FF' : '#2D3748',
-                      fontWeight: isSelected ? 'bold' : 'normal',
-                      fontSize: '15px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <span>{op}</span>
-                    {isSelected && <span style={{ fontWeight: 'bold', fontSize: 16 }}>●</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            {frequencia === 'Outro' && (
-              <input 
-                type="text" 
-                placeholder="Especifique a frequência..." 
-                value={frequenciaOutro} 
-                onFocus={() => falar("A introduzir outra frequência")}
-                onChange={(e) => setFrequenciaOutro(e.target.value)}
-                style={inputTextStyle} 
-              />
-            )}
-
-            <button 
-              disabled={!frequencia}
-              onClick={() => {
-                setStepSurvey(2);
-                falar("Pergunta seguinte: Onde se encontra o obstáculo?");
-              }} 
-              style={{ ...btnSuccess, opacity: frequencia ? 1 : 0.5, marginTop: 20 }}
-            >
-              Próxima Pergunta →
-            </button>
-          </div>
-        )}
-
-        {stepSurvey === 2 && (
-          <div>
-            <p style={{ fontWeight: 'bold', fontSize: 16, color: '#1A202C', marginBottom: 4 }}>
-              Este obstáculo encontra-se:
-            </p>
-            <span style={{ fontSize: 13, color: '#718096', display: 'block', marginBottom: 15 }}>
-              (Pode selecionar várias opções)
-            </span>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                'a caminho de casa',
-                'a caminho do trabalho',
-                'a caminho de uma área de lazer',
-                'a caminho de um espaço cultural',
-                'a caminho de uma loja',
-                'a caminho de um serviço da cidade',
-                'enquanto faço turismo',
-                'Outro',
-                'Prefiro não responder'
-              ].map((op) => {
-                const isSelected = destinosSelecionados.includes(op);
-                return (
-                  <button
-                    key={op}
-                    type="button"
-                    onClick={() => handleToggleDestino(op)}
-                    style={{
-                      padding: '12px 14px',
-                      borderRadius: '12px',
-                      border: isSelected ? '2px solid #00A8FF' : '1px solid #CBD5E0',
-                      backgroundColor: isSelected ? '#EBF8FF' : '#FFF',
-                      color: isSelected ? '#00A8FF' : '#2D3748',
-                      fontWeight: isSelected ? 'bold' : 'normal',
-                      fontSize: '14px',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <span>{op}</span>
-                    {isSelected && <span style={{ fontWeight: 'bold', fontSize: 16 }}>✓</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            {destinosSelecionados.includes('Outro') && (
-              <input 
-                type="text" 
-                placeholder="Especifique o destino..." 
-                value={destinoOutro} 
-                onFocus={() => falar("A introduzir outro destino")}
-                onChange={(e) => setDestinoOutro(e.target.value)}
-                style={inputTextStyle} 
-              />
-            )}
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-              <button 
-                type="button"
-                onClick={() => {
-                  setStepSurvey(1);
-                  falar("Voltar para a primeira pergunta");
-                }} 
-                style={{ ...btnSuccess, backgroundColor: '#EDF2F7', color: '#4A5568', width: '35%' }}
-              >
-                ← Voltar
-              </button>
-              <button 
-                type="button"
-                onClick={submeterInqueritoEGuardar} 
-                style={{ ...btnSuccess, width: '65%' }}
-              >
-                Concluir e Guardar
-              </button>
-            </div>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-
   if (!isRegistered) {
     return <LoginScreen perfil={perfil} setPerfil={setPerfil} onLogin={handleLogin} />;
   }
@@ -503,7 +513,23 @@ export default function ClientApp() {
         />
       )}
 
-      {pendingOccurrence && <SurveyModal />}
+      {pendingOccurrence && (
+        <SurveyModalComponent 
+          stepSurvey={stepSurvey}
+          setStepSurvey={setStepSurvey}
+          frequencia={frequencia}
+          setFrequencia={setFrequencia}
+          frequenciaOutro={frequenciaOutro}
+          setFrequenciaOutro={setFrequenciaOutro}
+          destinosSelecionados={destinosSelecionados}
+          setDestinosSelecionados={setDestinosSelecionados}
+          destinoOutro={destinoOutro}
+          setDestinoOutro={setDestinoOutro}
+          submeterInqueritoEGuardar={submeterInqueritoEGuardar}
+          falar={falar}
+          handleToggleDestino={handleToggleDestino}
+        />
+      )}
     </div>
   );
 }
