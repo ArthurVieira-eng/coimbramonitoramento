@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import logoImg from '../assets/logo.png'; // 1. Importação da imagem da pasta assets
+import logoImg from '../assets/logo.png';
 
 export default function LoginScreen({ perfil, setPerfil, onLogin }) {
   const [outraDeficiencia, setOutraDeficiencia] = useState('');
+  const [erroValidacao, setErroValidacao] = useState('');
 
-  // Função para sintetizar voz ao interagir
   const falar = (texto) => {
     if ('speechSynthesis' in window && perfil.tipologias?.includes('Deficiência visual')) {
       window.speechSynthesis.cancel();
@@ -28,11 +28,50 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
     setPerfil({ ...perfil, tipologias: atualizadas });
   };
 
+  // Função Regex para validar formato real de e-mail (ex: nome@dominio.com)
+  const validarEmail = (email) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(String(email).trim().toLowerCase());
+  };
+
+  const tentarEntrar = () => {
+    // 1. Validação de campos vazios base
+    if (!perfil.nome || !perfil.email) {
+      setErroValidacao("Por favor, preencha o Nome Completo e o E-mail.");
+      falar("Por favor, preencha o nome e o e-mail.");
+      return;
+    }
+
+    // 2. Validação estrita do formato de e-mail
+    if (!validarEmail(perfil.email)) {
+      setErroValidacao("Por favor, introduza um e-mail válido (ex: seu.email@exemplo.com).");
+      falar("E-mail inválido. Por favor, corrija o e-mail.");
+      return;
+    }
+
+    // 3. Validação de categoria
+    if (!perfil.categoria) {
+      setErroValidacao("Por favor, selecione a sua categoria.");
+      falar("Por favor, selecione a sua categoria.");
+      return;
+    }
+
+    // 4. Validação de tutor
+    if (perfil.categoria === 'tutor' && !perfil.nomeRepresentado) {
+      setErroValidacao("Por favor, indique o nome da pessoa que representa.");
+      falar("Por favor, indique o nome da pessoa representada.");
+      return;
+    }
+
+    setErroValidacao('');
+    falar("A entrar na aplicação");
+    onLogin();
+  };
+
   return (
     <div style={containerStyle}>
       <div style={cardStyle}>
         
-        {/* 2. Substituição do título h2 pela Imagem do Logótipo */}
         <div style={{ textAlign: 'center', marginBottom: 15 }}>
           <img 
             src={logoImg} 
@@ -43,7 +82,12 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
 
         <p style={{ color: '#666', fontSize: 14, marginBottom: 20 }}>Registo de Acessibilidade</p>
 
-        {/* Tópico 3: Nome & Email */}
+        {erroValidacao && (
+          <div style={{ backgroundColor: '#FFF5F5', color: '#E53E3E', padding: 10, borderRadius: 8, fontSize: 12, marginBottom: 15, fontWeight: 'bold' }}>
+            {erroValidacao}
+          </div>
+        )}
+
         <div style={{ textAlign: 'left', marginBottom: 12 }}>
           <label style={labelStyle}>Nome Completo *</label>
           <input 
@@ -68,7 +112,6 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
           />
         </div>
 
-        {/* Categoria */}
         <div style={{ textAlign: 'left', marginBottom: 15 }}>
           <label style={labelStyle}>Categoria *</label>
           <select 
@@ -86,7 +129,6 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
           </select>
         </div>
 
-        {/* Se for Tutor */}
         {perfil.categoria === 'tutor' && (
           <div style={{ textAlign: 'left', marginBottom: 15 }}>
             <label style={labelStyle}>Nome da pessoa que represento *</label>
@@ -101,7 +143,6 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
           </div>
         )}
 
-        {/* Tipologia de Deficiência (Se 'pcd') */}
         {perfil.categoria === 'pcd' && (
           <div style={{ textAlign: 'left', marginBottom: 15, backgroundColor: '#F0F8FF', padding: 12, borderRadius: 8 }}>
             <label style={{ ...labelStyle, color: '#00A8FF' }}>Tipologia de deficiência (pode marcar várias):</label>
@@ -139,13 +180,7 @@ export default function LoginScreen({ perfil, setPerfil, onLogin }) {
           </div>
         )}
 
-        <button 
-          onClick={() => {
-            falar("A entrar na aplicação");
-            onLogin();
-          }} 
-          style={btnStyle}
-        >
+        <button onClick={tentarEntrar} style={btnStyle}>
           Entrar na Aplicação
         </button>
       </div>

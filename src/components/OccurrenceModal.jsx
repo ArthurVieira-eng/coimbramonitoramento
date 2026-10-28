@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Camera, X, Mic, Square, Play, Trash2 } from 'lucide-react';
+import { Camera, X, Mic, Square, Trash2 } from 'lucide-react';
 
 const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, texto, setTexto, onSave, onClose, isSaving, tempAudio, setTempAudio }) => {
   const fileRef = useRef(null);
@@ -8,7 +8,6 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
   
   const [isRecording, setIsRecording] = useState(false);
 
-  // FUNÇÃO PARA INICIAR A GRAVAÇÃO DO ÁUDIO REAL
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -23,15 +22,11 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
 
       mediaRecorderRef.current.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        
-        // Converter o Blob de áudio para Base64 para enviar facilmente para o Firebase
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = () => {
-          setTempAudio(reader.result); // Guarda o áudio Base64 no componente pai
+          setTempAudio(reader.result);
         };
-
-        // Fechar os canais do microfone para libertar o dispositivo
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -43,7 +38,6 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
     }
   };
 
-  // FUNÇÃO PARA PARAR A GRAVAÇÃO
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -51,7 +45,6 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
     }
   };
 
-  // Lógica de Validação: Aceita foto, texto OR áudio gravado
   const handleValidationAndSave = () => {
     const temAlgo = tempPhoto || texto.trim().length > 0 || categoria || tempAudio;
     
@@ -60,21 +53,21 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
       return;
     }
     
-    onSave(); // Executa o salvamento no ClientApp
+    onSave();
   };
 
   return (
     <div style={overlay}>
       <div style={modalStyle}>
-        <div style={{display:'flex', justifyContent:'space-between', marginBottom: 15}}>
-          <h3 style={{margin:0, color:'#00A8FF'}}>Registar Barreira</h3>
+        <div style={{display:'flex', justifyContent:'space-between', marginBottom: 15, alignItems: 'center'}}>
+          <h3 style={{margin:0, color:'#00A8FF', fontSize: 18}}>Registar Barreira</h3>
           {!isSaving && <X onClick={onClose} style={{cursor:'pointer'}} />}
         </div>
 
-        <div style={{maxHeight: '60vh', overflowY: 'auto'}}>
+        <div style={{maxHeight: '70vh', overflowY: 'auto', paddingRight: 4}}>
           {/* Dropzone da Foto */}
           <div onClick={() => !isSaving && fileRef.current.click()} style={dropzone}>
-            {tempPhoto ? <img src={tempPhoto} alt="Preview" style={{width:'100%', borderRadius:8}} /> : <Camera size={30} />}
+            {tempPhoto ? <img src={tempPhoto} alt="Preview" style={{width:'100%', height:'100%', objectFit: 'cover', borderRadius:8}} /> : <Camera size={30} color="#00A8FF" />}
             <input type="file" accept="image/*" capture="camera" ref={fileRef} hidden onChange={e => {
               if (e.target.files && e.target.files[0]) {
                 const reader = new FileReader();
@@ -89,6 +82,7 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
             {["Buraco", "Degrau", "Rampa", "Calçada", "Elevador", "Piso", "Outros"].map(t => (
               <button 
                 key={t} 
+                type="button"
                 disabled={isSaving} 
                 onClick={() => setCategoria(t)} 
                 style={{...tagBtn, backgroundColor: categoria === t ? '#00A8FF' : '#FFF', color: categoria === t ? '#FFF' : '#00A8FF', opacity: isSaving ? 0.6 : 1}}
@@ -98,7 +92,7 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
             ))}
           </div>
 
-          {/* SEÇÃO DE GRAVAÇÃO DE ÁUDIO REAL */}
+          {/* SEÇÃO DE GRAVAÇÃO DE ÁUDIO */}
           <div style={audioContainer}>
             <p style={{margin: '0 0 8px 0', fontSize: '13px', fontWeight: 'bold', color: '#555'}}>Relato em Áudio:</p>
             
@@ -119,9 +113,9 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
                 </button>
               ) : (
                 <div style={{display: 'flex', alignItems: 'center', gap: '10px', width: '100%'}}>
-                  {/* Player para o utilizador ouvir o que gravou antes de enviar */}
                   <audio src={tempAudio} controls style={{height: '35px', flex: 1}} />
                   <button 
+                    type="button"
                     onClick={() => setTempAudio(null)} 
                     style={{background: 'none', border: 'none', color: '#FF4444', cursor: 'pointer'}}
                     title="Apagar áudio"
@@ -146,6 +140,7 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
           </div>
 
           <button 
+            type="button"
             onClick={handleValidationAndSave} 
             style={{
                 ...saveBtn, 
@@ -162,15 +157,15 @@ const OccurrenceModal = ({ tempPhoto, setTempPhoto, categoria, setCategoria, tex
   );
 };
 
-const overlay = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 };
-const modalStyle = { backgroundColor: 'white', borderRadius: 20, width: '100%', maxWidth: 360, padding: 20 };
-const dropzone = { border: '2px dashed #00A8FF', height: 120, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 15, overflow:'hidden', cursor: 'pointer' };
-const tagGrid = { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 15 };
-const tagBtn = { padding: '8px 12px', borderRadius: 10, border: '1px solid #00A8FF', fontSize: 12, fontWeight: 'bold', cursor: 'pointer' };
-const inputStyle = { width: '100%', padding: 12, marginBottom: 0, borderRadius: 10, border: '1px solid #DDD', minHeight: '60px', fontFamily: 'inherit', resize: 'none' };
-const saveBtn = { width: '100%', backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: 15, borderRadius: 10, fontWeight: 'bold' };
-const audioContainer = { backgroundColor: '#F9F9F9', padding: '12px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #EEE' };
+const overlay = { position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 15 };
+const modalStyle = { backgroundColor: 'white', borderRadius: 20, width: '100%', maxWidth: 360, padding: 20, boxSizing: 'border-box' };
+const dropzone = { border: '2px dashed #00A8FF', height: 110, borderRadius: 15, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 15, overflow:'hidden', cursor: 'pointer', backgroundColor: '#F7FAFC' };
+const tagGrid = { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 15 };
+const tagBtn = { padding: '6px 10px', borderRadius: 8, border: '1px solid #00A8FF', fontSize: 12, fontWeight: 'bold', cursor: 'pointer' };
+const inputStyle = { width: '100%', padding: 10, borderRadius: 8, border: '1px solid #DDD', minHeight: '60px', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box' };
+const saveBtn = { width: '100%', backgroundColor: '#00A8FF', color: 'white', border: 'none', padding: 14, borderRadius: 10, fontWeight: 'bold' };
+const audioContainer = { backgroundColor: '#F9F9F9', padding: '10px', borderRadius: '12px', marginBottom: '15px', border: '1px solid #EEE' };
 const audioBtn = { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px', width: '100%', justifyContent: 'center' };
-const recordingText = { display: 'block', fontSize: '11px', color: '#FF4444', marginTop: '6px', textAlign: 'center', fontWeight: 'bold', animation: 'pulse 1s infinite' };
+const recordingText = { display: 'block', fontSize: '11px', color: '#FF4444', marginTop: '6px', textAlign: 'center', fontWeight: 'bold' };
 
 export default OccurrenceModal;
