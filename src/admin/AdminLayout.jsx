@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Navigate, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Map as MapIcon, List, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Map as MapIcon, List, LogOut, Menu, X, ClipboardList } from 'lucide-react';
 import logo from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -74,11 +74,14 @@ export default function AdminLayout() {
           <div style={{ color: '#010615' }}>Primeiro Aqui ao Lado</div>
           <span style={{ color: '#00A8FF', fontSize: '14px', marginTop: '5px', display: 'block' }}>Área Admin</span>
         </div>
+        
         <nav style={{ flex: 1, padding: '20px 0', display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <NavItem to="/admin" icon={<LayoutDashboard size={20} />} label="Dashboard" end onClick={() => setIsMobileMenuOpen(false)} />
           <NavItem to="/admin/mapa" icon={<MapIcon size={20} />} label="Mapa de Calor" onClick={() => setIsMobileMenuOpen(false)} />
           <NavItem to="/admin/ocorrencias" icon={<List size={20} />} label="Ocorrências" onClick={() => setIsMobileMenuOpen(false)} />
+          <NavItem to="/admin/relatorios" icon={<ClipboardList size={20} />} label="Relatórios" onClick={() => setIsMobileMenuOpen(false)} />
         </nav>
+
         <div style={{ padding: '20px', borderTop: '1px solid #E2E8F0' }}>
           <button 
             onClick={handleLogout}
